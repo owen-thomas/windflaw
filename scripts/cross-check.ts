@@ -46,7 +46,12 @@ const REFERENCES: Reference[] = [
   { date: '2026-07-18', monitorGWh: 10.9, note: 'moderate, settled' },
   { date: '2026-07-21', monitorGWh: 7.8, note: 'recent' },
   { date: '2026-07-22', monitorGWh: 0.6, note: 'recent, near-calm' },
-  { date: '2026-07-23', monitorGWh: 7.2, note: 'most recent complete day' },
+  // The monitor's series for this day has 46 half-hourly points, not 48:
+  // 19:00 and 19:30 are absent, and its daily total is the sum of that
+  // incomplete series. Those two periods are Windfall's peak, worth
+  // 1,696.5 MWh, which is 84% of the disagreement. Comparing the published
+  // totals therefore overstates the gap; see DECISIONS 014.
+  { date: '2026-07-23', monitorGWh: 7.2, note: 'comparator missing 19:00 and 19:30' },
 ];
 
 /** The availability-based figure from DECISIONS 002, for contrast. */

@@ -307,12 +307,34 @@ Three hypotheses were tested and eliminated:
 - **The SO flag.** Acceptances distinguish system-operator actions from energy balancing, and Windfall counts both. On 23 July every acceptance is already SO-flagged, so the flag cannot explain that day's excess. On 20 June, filtering to SO-only slightly *raises* the figure, via acceptance precedence — removing a higher-numbered non-SO acceptance lets a lower instructed level win.
 - **Recency.** 23 July is the most recent complete day, so unsettled data was the obvious candidate. But 21 and 22 July are nearly as recent and agree at 0.992x and 0.913x.
 
-So 13 June is most likely unit scope — a heavily constrained day is when curtailment outside a 50-unit Scottish list is most likely to appear — and **23 July is unexplained.** Recorded as unexplained rather than attributed to the nearest plausible cause, which is the same standard 002 applied to the tracker gap.
+So 13 June is most likely unit scope — a heavily constrained day is when curtailment outside a 50-unit Scottish list is most likely to appear. 23 July was recorded as unexplained rather than attributed to the nearest plausible cause. It has since been explained; see 014.
 
 **A caveat on ratios.** The monitor publishes to 0.1 GWh. On 22 July the absolute difference is 0.05 GWh and the ratio of 0.913x is mostly rounding. Ratio is the wrong statistic on a near-calm day, and the product should never be tempted to display one.
 
 **Consequence for the product:** the method note previously stated that larger published figures "are usually derived by estimating how much wind was available and subtracting what was metered". That was conjecture presented as fact — precisely the failure 010 named — since the tracker does not publish its method. It is replaced by what can be shown: that an independent tracker reading the same balancing data agrees with Windfall to within about 1% on most days. "On most days" is doing honest work there and should survive future copy edits.
 
-**What was rejected:** wiring the monitor in as a live comparator (Windfall must never need another project to be up in order to render, and the cross-check is a validation, not a feature); chasing the 23 July outlier further (three hypotheses eliminated is enough to say the agreement is real and the exception is unexplained, and the next candidates need their unit list, which is not published); citing the agreement as a precise figure such as "within 1%" without qualification, when it is three days in six.
+**What was rejected:** wiring the monitor in as a live comparator (Windfall must never need another project to be up in order to render, and the cross-check is a validation, not a feature); citing the agreement as a precise figure such as "within 1%" without qualification, when it is three days in six.
+
+---
+
+## 014 — The 23 July outlier was a gap in the comparator, found by localising before theorising
+
+**Date:** 2026-07-24
+**Phase:** Phase 1 (stream C)
+**Decision:** 23 July is resolved. The monitor's published series for that day is missing two half-hours, 19:00 and 19:30, and those two periods carry 1,696.5 MWh in Windfall's derivation — 84% of the 2.03 GWh disagreement. Excluding them, the day agrees at 1.046x rather than 1.287x, which puts it in line with every other day sampled.
+
+**How it was found, which is the part worth keeping.** Three hypotheses had already been eliminated in 013 by reasoning about mechanisms — the clamp, the SO flag, recency. A fourth guess would have been the same move again. Instead the question changed from *why* to *where*: `scripts/day-profile.ts` prints the day per period and per farm, on the argument that a single farm, a single window, and a uniform spread each imply a different cause and the shape distinguishes them before any mechanism is proposed.
+
+The shape showed one continuous evening event peaking at 19:30 — exactly where the comparator turns out to have no data. Localising first would have found this before any of the three mechanism hypotheses were tested, and the general lesson is to reach for the profile before the theory.
+
+**Confirming it is specific to that day:** the monitor's own chart traces were read directly. 23 July returns 46 half-hourly points where a settlement day has 48; 21 June and 13 June both return a complete 48 with no gaps. The daily headline figure is the sum of the same incomplete series (7.231 GWh against a published 7.2), so the gap propagates into the published total rather than being a plotting artefact.
+
+**Said plainly and without inflation:** this is a missing-data gap in a hourly-updating side project, on a day that was then the most recent complete one. It is the kind of thing that may well self-heal on a later ingest, and it says nothing about the monitor's method — which is the thing the cross-check was actually testing, and which continues to agree with Windfall. Finding it does not make Windfall more right; it removes a false disagreement.
+
+**A residue that is not explained.** The missing periods account for 84% of the gap, not all of it. From 22:00 to the end of the day Windfall reads consistently higher — 1,991 MWh against 1,647, a further 344 MWh. That tail is unexplained and is left so. The candidate is the same late-day incompleteness affecting the final hours less totally, but nothing here demonstrates it.
+
+**Consequence for the method note:** the note said 23 July was "not yet explained". It now reports the corrected figure *and* the correction, because a reader reproducing the comparison from the monitor's site today would get 29%, not 5%. Presenting only the corrected number would fail the exact test the note exists to pass.
+
+**What was rejected:** dropping 23 July from the sample (removing the day that disagrees is how a validation becomes a decoration); reporting only the corrected 1.046x (unreproducible from the public source); treating the finding as an error in the monitor (it is a gap in one day's data, found in a project whose author openly describes it as evenings-and-weekends work, and the courtesy costs nothing).
 
 **Correction made while writing this up:** the first pass through these ratios counted four days within 1% rather than three, by reading 22 July's 0.913x as agreement. It is agreement, but by rounding rather than by measurement, and the two are not the same claim. Recorded because the note's whole purpose is to survive a reader checking the arithmetic.

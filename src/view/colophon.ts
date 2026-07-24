@@ -71,8 +71,9 @@ export function colophonView(): View {
         text:
           'The Wind Curtailment Monitor, an independent tracker reading the same balancing ' +
           'data, derives 23.50 GWh for that day. Across six sampled days Windfall came within ' +
-          '1% on three, within rounding on a fourth, 13% low on 13 June and 29% high on ' +
-          '23 July. The last of those is not yet explained.',
+          '1% on three, within rounding on a fourth, and 13% low on 13 June. On 23 July it ' +
+          'read 29% high, a gap that falls to 5% once two half-hours absent from the ' +
+          'tracker’s own published series are set aside.',
       })
     ),
     el(

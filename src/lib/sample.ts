@@ -751,7 +751,7 @@ export const SAMPLE_CURTAILMENT: CurtailmentResponse = {
   },
   "method": {
     "basis": "Instructed turn-downs of transmission-connected Scottish wind via the balancing mechanism: declared output (PN) minus accepted level (BOALF). Excludes self-curtailment, pre-adjusted declarations and distribution-connected units, so the figure is a floor.",
-    "unitsTracked": 50,
-    "capacityMW": 8573.9
+    "unitsTracked": 112,
+    "capacityMW": 13105.454
   }
 };

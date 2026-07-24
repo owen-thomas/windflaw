@@ -71,7 +71,7 @@ But this is conjecture. The gap could also reflect differences in unit coverage,
 - BOALF per-unit `bmUnit` filter is broken — returns 0 items even for units with known acceptances. **Must fetch all BOALFs and filter in code.** This has implications for live queries (larger payloads than necessary).
 - BOALF uses `from`/`to` dates and optional `settlementPeriodFrom`/`settlementPeriodTo`
 
-**Scottish wind BMU list:** 50 transmission-connected units curated. Total registered capacity ~8,533 MW. 19 of 20 units with BOALFs on the validation date were in our list. Added missing unit (Edinbane, Skye, 41.4 MW). The list covers Seagreen (2 GW), Moray East (0.9 GW), Moray West (0.86 GW), Beatrice (0.68 GW), Viking (0.49 GW), and major onshore farms.
+**Scottish wind BMU list:** 50 transmission-connected units curated. Total registered capacity ~8,533 MW (the product computed and displayed 8,574 MW from the same list; the round figure here was never recomputed after Edinbane was added). **Superseded by 015** — the list was 62 units short, and the light validation date is why. 19 of 20 units with BOALFs on the validation date were in our list. Added missing unit (Edinbane, Skye, 41.4 MW). The list covers Seagreen (2 GW), Moray East (0.9 GW), Moray West (0.86 GW), Beatrice (0.68 GW), Viking (0.49 GW), and major onshore farms.
 
 **Top curtailed farms (20 June 2026, our method):**
 1. Seagreen: 7.06 GWh
@@ -295,6 +295,8 @@ One fixture is deliberately not a straight copy: the calm-day mix moves Scotland
 | 22 July | 0.55 GWh | 0.60 GWh | 0.913x |
 | 23 July | 9.26 GWh | 7.20 GWh | 1.287x |
 
+*These are the figures from the 50-unit list. 015 replaces that list and re-runs the whole table; the conclusion of this entry survives, the 13 June row does not.*
+
 Three of six agree within 1%; mean ratio 1.014x. A fourth, 22 July, differs by 0.05 GWh — inside the 0.1 GWh the monitor rounds to, so it is agreement that cannot be measured more finely rather than a 9% miss. On 20 June — the phase 0 validation date — Windfall reads 23.75 GWh against the monitor's 23.50 while the public tracker reports 56.45. **Both balancing-mechanism methods sit at roughly 0.42x of the tracker.** That is the finding: the gap is a property of the method family, and it reproduces in a project that has nothing to do with this one.
 
 This upgrades 003 from a defensible position to a supported one. The floor framing was always the honest choice; it is now also the demonstrably consistent one.
@@ -307,7 +309,7 @@ Three hypotheses were tested and eliminated:
 - **The SO flag.** Acceptances distinguish system-operator actions from energy balancing, and Windfall counts both. On 23 July every acceptance is already SO-flagged, so the flag cannot explain that day's excess. On 20 June, filtering to SO-only slightly *raises* the figure, via acceptance precedence — removing a higher-numbered non-SO acceptance lets a lower instructed level win.
 - **Recency.** 23 July is the most recent complete day, so unsettled data was the obvious candidate. But 21 and 22 July are nearly as recent and agree at 0.992x and 0.913x.
 
-So 13 June is most likely unit scope — a heavily constrained day is when curtailment outside a 50-unit Scottish list is most likely to appear. 23 July was recorded as unexplained rather than attributed to the nearest plausible cause. It has since been explained; see 014.
+So 13 June is most likely unit scope — a heavily constrained day is when curtailment outside a 50-unit Scottish list is most likely to appear. 23 July was recorded as unexplained rather than attributed to the nearest plausible cause. It has since been explained; see 014. **Unit scope was the right guess and is confirmed in 015**, which also shows it overshoots: with the full population the day lands 17% *above* the monitor.
 
 **A caveat on ratios.** The monitor publishes to 0.1 GWh. On 22 July the absolute difference is 0.05 GWh and the ratio of 0.913x is mostly rounding. Ratio is the wrong statistic on a near-calm day, and the product should never be tempted to display one.
 
@@ -321,7 +323,7 @@ So 13 June is most likely unit scope — a heavily constrained day is when curta
 
 **Date:** 2026-07-24
 **Phase:** Phase 1 (stream C)
-**Decision:** 23 July is resolved. The monitor's published series for that day is missing two half-hours, 19:00 and 19:30, and those two periods carry 1,696.5 MWh in Windfall's derivation — 84% of the 2.03 GWh disagreement. Excluding them, the day agrees at 1.046x rather than 1.287x, which puts it in line with every other day sampled.
+**Decision:** 23 July is resolved. The monitor's published series for that day is missing two half-hours, 19:00 and 19:30, and those two periods carry 1,696.5 MWh in Windfall's derivation — 84% of the 2.03 GWh disagreement. Excluding them, the day agrees at 1.046x rather than 1.287x (1.049x against 1.297x on the 015 unit list), which puts it in line with every other day sampled.
 
 **How it was found, which is the part worth keeping.** Three hypotheses had already been eliminated in 013 by reasoning about mechanisms — the clamp, the SO flag, recency. A fourth guess would have been the same move again. Instead the question changed from *why* to *where*: `scripts/day-profile.ts` prints the day per period and per farm, on the argument that a single farm, a single window, and a uniform spread each imply a different cause and the shape distinguishes them before any mechanism is proposed.
 
@@ -338,3 +340,46 @@ The shape showed one continuous evening event peaking at 19:30 — exactly where
 **What was rejected:** dropping 23 July from the sample (removing the day that disagrees is how a validation becomes a decoration); reporting only the corrected 1.046x (unreproducible from the public source); treating the finding as an error in the monitor (it is a gap in one day's data, found in a project whose author openly describes it as evenings-and-weekends work, and the courtesy costs nothing).
 
 **Correction made while writing this up:** the first pass through these ratios counted four days within 1% rather than three, by reading 22 July's 0.913x as agreement. It is agreement, but by rounding rather than by measurement, and the two are not the same claim. Recorded because the note's whole purpose is to survive a reader checking the arithmetic.
+
+---
+
+## 015 — The BMU list was validated on the one day its gaps could not bind
+
+**Date:** 2026-07-24
+**Phase:** Phase 1 (review follow-up)
+**Decision:** Replace the 50-unit hand-curated list with all 112 transmission-connected Scottish wind BMUs, derived from Elexon's BM unit registry. Closes the "most likely unit scope" left open in 013.
+
+**The test 013 called for.** 13 June was re-derived over every transmission-connected wind BMU, then split into tracked and untracked using Windfall's own level derivation, so the comparison is like-for-like. The reimplementation reproduced the tracked figure exactly.
+
+| Date | Tracked 50 | Everything else |
+|---|---|---|
+| 13 June (heavy constraint) | 51.08 GWh | 18.45 GWh across 41 units |
+| 20 June (the validation date) | 23.75 GWh | 0.00 GWh |
+| 23 July | 9.26 GWh | 0.15 GWh, mostly London Array |
+
+**Why this is the part that matters, and not the number.** The gap is ~0 on ordinary days and ~36% of the headline on heavily constrained ones. The phase 0 check — 19 of 20 units with acceptances on 20 June were in the list — was therefore run on the single day where the list's gaps could not bind. **The list looked validated because it was validated on a light day.** A coverage check has to be run on the day the product is about, which is the constrained day, or it measures nothing.
+
+Two omissions self-evidenced without any geography: GORDW-1 was missing while GORDW-2 was tracked as "Gordonbush Ext", and WHILW-1 (309 MW) was missing while WHILW-2 was tracked as "Whitelee Ext". The extensions were in and the parent farms were out — a shape that says the list was assembled by recognising names rather than by enumerating a population.
+
+**The new basis.** Every BM unit with `bmUnitType` T and `fuelType` WIND whose farm is in Scotland or Scottish waters: 112 units, 13,105 MW, capacities taken verbatim from the registry's `generationCapacity` so the total on screen traces to a published figure. Membership stays a static list because the registry has no usable location field for transmission units (`gspGroupId` is populated only for embedded ones) — so "in Scotland" is a judgement made once, in `api/_lib/bmus.ts`, and never at runtime.
+
+The floor framing (003) is unaffected: embedded and distribution-connected Scottish wind still does not appear, and Baillie (BABAW-1) is the nearest miss — Caithness, registered E rather than T.
+
+**What it does to the cross-check.** The whole table was re-run:
+
+| Date | Windfall (112 units) | Monitor | Ratio |
+|---|---|---|---|
+| 13 June | 68.34 GWh | 58.50 GWh | 1.168x |
+| 20 June | 23.75 GWh | 23.50 GWh | **1.010x** |
+| 18 July | 11.10 GWh | 10.90 GWh | **1.018x** |
+| 21 July | 7.90 GWh | 7.80 GWh | **1.013x** |
+| 22 July | 0.57 GWh | 0.60 GWh | 0.954x |
+| 23 July | 9.34 GWh | 7.20 GWh | 1.297x |
+
+Three days sit within 2% where three sat within 1%, and 22 July's difference is still 0.03 GWh — inside the monitor's rounding, as 013 said. 13 June has flipped from 13% low to 17% high, which is a real change of sign and is **not** claimed as resolved. Windfall now measures a larger population than the comparator does on the day when population matters most; that is a plausible reading of a 1.168x, not a demonstrated one, and the honest position is that the largest disagreement in the sample moved rather than closed.
+
+**Consequence for the product:** the method note's coverage line is generated from the payload, so it now reads 112 units and 13,105 MW, and "transmission-connected Scottish wind units" is finally the population rather than a subset of it. The cross-check paragraph is rewritten against the new table, including the 17%.
+
+**What was rejected:** adding only the ~21 farms the 13 June split named (that repeats the original error — patching a list by recognition instead of enumerating a population, and the next constrained day would find the next gap); deriving membership at runtime from `gspGroupId` (not populated for T units, so it would silently empty the list); keeping the old capacities where they differed from the registry (two sources for one number is how 002's 8,533-vs-8,574 drift happened).
+
+---

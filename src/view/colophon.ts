@@ -63,13 +63,16 @@ export function colophonView(): View {
         text:
           'Published figures for curtailment are often larger. Windfall counts only instructed ' +
           'turn-downs — wind the grid actively paid to switch off — which is a floor: real ' +
-          'curtailment is higher, and this figure will never overstate it.',
+          'curtailment is higher, and this figure will never overstate it. For 20 June 2026, ' +
+          'Windfall derives 23.75 GWh where a widely cited figure for the same day is 56.45.',
       }),
       el('p', {
         class: 'method__check',
         text:
-          'Checked against the Wind Curtailment Monitor, an independent tracker reading the ' +
-          'same balancing data, Windfall agrees to within about 1% on most days.',
+          'The Wind Curtailment Monitor, an independent tracker reading the same balancing ' +
+          'data, derives 23.50 GWh for that day. Across six sampled days Windfall came within ' +
+          '1% on three, within rounding on a fourth, 13% low on 13 June and 29% high on ' +
+          '23 July. The last of those is not yet explained.',
       })
     ),
     el(

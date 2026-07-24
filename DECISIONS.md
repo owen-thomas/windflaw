@@ -64,7 +64,7 @@ But this is conjecture. The gap could also reflect differences in unit coverage,
 
 **Phase 1 follow-up:** cross-check our derivation against de Berker's Wind Curtailment Monitor, which is also balancing-mechanism-derived. If Windfall lands close to another BM-method source, the gap to the tracker becomes a family difference between BM-derived and availability-based methods — explicable rather than unexplained. One script run against a shared date.
 
-**Resolved in 013.** Windfall and the monitor agree to within 1% on four days of six, and both sit at ~0.42x of the tracker. The family difference is confirmed.
+**Resolved in 013.** Windfall and the monitor agree to within 1% on three days of six (a fourth inside the monitor's rounding), and both sit at ~0.42x of the tracker. The family difference is confirmed.
 
 **API quirks discovered:**
 - PN endpoint uses `settlementDate` + `settlementPeriod` params; PN/stream uses `from`/`to` dates (exclusive end)
@@ -295,7 +295,7 @@ One fixture is deliberately not a straight copy: the calm-day mix moves Scotland
 | 22 July | 0.55 GWh | 0.60 GWh | 0.913x |
 | 23 July | 9.26 GWh | 7.20 GWh | 1.287x |
 
-Four of six agree within 1%; mean ratio 1.014x. On 20 June — the phase 0 validation date — Windfall reads 23.75 GWh against the monitor's 23.50 while the public tracker reports 56.45. **Both balancing-mechanism methods sit at roughly 0.42x of the tracker.** That is the finding: the gap is a property of the method family, and it reproduces in a project that has nothing to do with this one.
+Three of six agree within 1%; mean ratio 1.014x. A fourth, 22 July, differs by 0.05 GWh — inside the 0.1 GWh the monitor rounds to, so it is agreement that cannot be measured more finely rather than a 9% miss. On 20 June — the phase 0 validation date — Windfall reads 23.75 GWh against the monitor's 23.50 while the public tracker reports 56.45. **Both balancing-mechanism methods sit at roughly 0.42x of the tracker.** That is the finding: the gap is a property of the method family, and it reproduces in a project that has nothing to do with this one.
 
 This upgrades 003 from a defensible position to a supported one. The floor framing was always the honest choice; it is now also the demonstrably consistent one.
 
@@ -313,4 +313,6 @@ So 13 June is most likely unit scope — a heavily constrained day is when curta
 
 **Consequence for the product:** the method note previously stated that larger published figures "are usually derived by estimating how much wind was available and subtracting what was metered". That was conjecture presented as fact — precisely the failure 010 named — since the tracker does not publish its method. It is replaced by what can be shown: that an independent tracker reading the same balancing data agrees with Windfall to within about 1% on most days. "On most days" is doing honest work there and should survive future copy edits.
 
-**What was rejected:** wiring the monitor in as a live comparator (Windfall must never need another project to be up in order to render, and the cross-check is a validation, not a feature); chasing the 23 July outlier further (three hypotheses eliminated is enough to say the agreement is real and the exception is unexplained, and the next candidates need their unit list, which is not published); citing the agreement as a precise figure such as "within 1%" without qualification, when it is four days in six.
+**What was rejected:** wiring the monitor in as a live comparator (Windfall must never need another project to be up in order to render, and the cross-check is a validation, not a feature); chasing the 23 July outlier further (three hypotheses eliminated is enough to say the agreement is real and the exception is unexplained, and the next candidates need their unit list, which is not published); citing the agreement as a precise figure such as "within 1%" without qualification, when it is three days in six.
+
+**Correction made while writing this up:** the first pass through these ratios counted four days within 1% rather than three, by reading 22 July's 0.913x as agreement. It is agreement, but by rounding rather than by measurement, and the two are not the same claim. Recorded because the note's whole purpose is to survive a reader checking the arithmetic.

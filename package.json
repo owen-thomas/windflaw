@@ -7,10 +7,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "probe": "npx tsx scripts/probe-api.ts",
     "spike:carbon": "npx tsx spike/carbon-intensity.ts",
     "spike:elexon": "npx tsx spike/elexon-curtailment.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.1.1",
     "typescript": "^5.8.0",
     "vite": "^6.3.0"
   }

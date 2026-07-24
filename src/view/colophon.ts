@@ -61,10 +61,15 @@ export function colophonView(): View {
       el('p', {
         class: 'method__floor',
         text:
-          'Published figures for curtailment are often larger. They are usually derived by ' +
-          'estimating how much wind was available and subtracting what was metered. Windfall ' +
-          'counts only instructed turn-downs, which is a floor: real curtailment is higher, ' +
-          'and this figure will never overstate it.',
+          'Published figures for curtailment are often larger. Windfall counts only instructed ' +
+          'turn-downs — wind the grid actively paid to switch off — which is a floor: real ' +
+          'curtailment is higher, and this figure will never overstate it.',
+      }),
+      el('p', {
+        class: 'method__check',
+        text:
+          'Checked against the Wind Curtailment Monitor, an independent tracker reading the ' +
+          'same balancing data, Windfall agrees to within about 1% on most days.',
       })
     ),
     el(

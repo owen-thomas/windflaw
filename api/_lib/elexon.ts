@@ -143,8 +143,15 @@ function lookbackWindows(
   ];
 }
 
-/** Interpolate a piecewise-linear profile at an instant. Null if uncovered. */
-function levelAt(segments: Segment[], at: number): number | null {
+/**
+ * Interpolate a piecewise-linear profile at an instant. Null if uncovered.
+ *
+ * Exported for the Stream C cross-check, which measures what the clamp in
+ * `deriveSettled` excludes. That diagnostic has to share these exact
+ * interpolation semantics or it would be comparing against a third method
+ * rather than isolating one difference.
+ */
+export function levelAt(segments: Segment[], at: number): number | null {
   for (const seg of segments) {
     const from = Date.parse(seg.timeFrom);
     const to = Date.parse(seg.timeTo);
@@ -165,7 +172,7 @@ function levelAt(segments: Segment[], at: number): number | null {
  * only for the time it actually covers. This is closer to how the instruction
  * stack behaves and it is what the instantaneous figure needs anyway.
  */
-function instructedLevelAt(items: BOALFItem[], at: number): number | null {
+export function instructedLevelAt(items: BOALFItem[], at: number): number | null {
   let winner: { acceptance: number; level: number } | null = null;
   for (const item of items) {
     const level = levelAt([item], at);

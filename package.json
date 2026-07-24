@@ -1,0 +1,17 @@
+{
+  "name": "windfall",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "spike:carbon": "npx tsx spike/carbon-intensity.ts",
+    "spike:elexon": "npx tsx spike/elexon-curtailment.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0"
+  }
+}

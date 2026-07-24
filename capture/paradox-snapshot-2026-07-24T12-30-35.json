@@ -1,0 +1,135 @@
+{
+  "captured": "2026-07-24T12:30:35.859Z",
+  "period": {
+    "from": "2026-07-24T12:00Z",
+    "to": "2026-07-24T12:30Z",
+    "intensity": {
+      "forecast": 53,
+      "actual": 58,
+      "index": "low"
+    }
+  },
+  "national": {
+    "intensity": {
+      "forecast": 53,
+      "actual": 58,
+      "index": "low"
+    },
+    "generationMix": [
+      {
+        "fuel": "biomass",
+        "perc": 4.1
+      },
+      {
+        "fuel": "coal",
+        "perc": 0
+      },
+      {
+        "fuel": "imports",
+        "perc": 17.7
+      },
+      {
+        "fuel": "gas",
+        "perc": 6.1
+      },
+      {
+        "fuel": "nuclear",
+        "perc": 10.1
+      },
+      {
+        "fuel": "other",
+        "perc": 0
+      },
+      {
+        "fuel": "hydro",
+        "perc": 0
+      },
+      {
+        "fuel": "solar",
+        "perc": 37.9
+      },
+      {
+        "fuel": "wind",
+        "perc": 24.1
+      }
+    ]
+  },
+  "scotland": {
+    "intensity": {
+      "forecast": 1,
+      "index": "very low"
+    },
+    "wind_pct": 76.8,
+    "gas_pct": 0,
+    "generationMix": [
+      {
+        "fuel": "biomass",
+        "perc": 0.7
+      },
+      {
+        "fuel": "coal",
+        "perc": 0
+      },
+      {
+        "fuel": "imports",
+        "perc": 0
+      },
+      {
+        "fuel": "gas",
+        "perc": 0
+      },
+      {
+        "fuel": "nuclear",
+        "perc": 17.5
+      },
+      {
+        "fuel": "other",
+        "perc": 0
+      },
+      {
+        "fuel": "hydro",
+        "perc": 0
+      },
+      {
+        "fuel": "solar",
+        "perc": 5
+      },
+      {
+        "fuel": "wind",
+        "perc": 76.8
+      }
+    ]
+  },
+  "northScotland": {
+    "intensity": {
+      "forecast": 0,
+      "index": "very low"
+    },
+    "wind_pct": 94.8
+  },
+  "southEngland": {
+    "intensity": {
+      "forecast": 73,
+      "index": "low"
+    },
+    "wind_pct": 1.4,
+    "gas_pct": 12.7
+  },
+  "southEastEngland": {
+    "intensity": {
+      "forecast": 80,
+      "index": "low"
+    }
+  },
+  "curtailment": {
+    "settlementPeriod": 28,
+    "totalBOALFItems": 333,
+    "scottishWindBOALFItems": 6,
+    "curtailedUnits": [
+      "NNGAO-1",
+      "NNGAO-2",
+      "MOWWO-3",
+      "GORDW-2"
+    ]
+  }
+}

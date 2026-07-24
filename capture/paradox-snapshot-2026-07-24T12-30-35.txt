@@ -1,0 +1,24 @@
+WINDFALL PARADOX SNAPSHOT
+========================
+Captured: 2026-07-24T12:30:35.859Z (an ordinary Thursday)
+Settlement period: 2026-07-24T12:00Z to 2026-07-24T12:30Z
+
+THE TWO NUMBERS:
+  Scotland carbon intensity:      1 gCO2/kWh (very low)
+  South England carbon intensity: 73 gCO2/kWh (low)
+
+  Scotland wind generation:       76.8%
+  Scotland gas generation:        0%
+  South England wind generation:  1.4%
+  South England gas generation:   12.7%
+
+  National wind:                  24.1%
+  National gas:                   6.1%
+
+CURTAILMENT THIS PERIOD:
+  Scottish wind units being curtailed: 4
+  Units: NNGAO-1, NNGAO-2, MOWWO-3, GORDW-2
+
+Scotland is generating almost entirely from wind, at near-zero carbon
+intensity, while simultaneously being instructed to switch wind farms off.
+South England runs at 52 gCO2/kWh with gas in the mix.

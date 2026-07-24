@@ -15,7 +15,7 @@ import { el, setAttr, setText, type View } from './dom';
 import { FUEL_ORDER, orderMix } from '../lib/fuels';
 import { formatIntensity, formatPct, fuelLabel } from '../lib/format';
 import type { RegionState, RegionalState } from '../lib/types';
-import type { AppState } from '../lib/state';
+import { speaksOfNow, type AppState } from '../lib/state';
 
 export interface BandSpec {
   side: 'north' | 'south';
@@ -30,7 +30,13 @@ export interface BandSpec {
    * support. A screen that keeps asserting through its own outage is the
    * fastest way to lose a reader who is checking.
    */
-  caption: { constrained: string; clear: string; unknown: string };
+  caption: {
+    /** Present and past tense of the same claim; see DECISIONS 010. */
+    constrained: { now: string; past: string };
+    clear: { now: string; past: string };
+    /** Tense-free: it describes the standing relation, not this half-hour. */
+    unknown: string;
+  };
   pick: (regions: RegionalState) => RegionState | null;
 }
 
@@ -86,8 +92,28 @@ export function bandView(spec: BandSpec): View {
     update(state: AppState) {
       const region = state.grid?.regions ? spec.pick(state.grid.regions) : null;
       const now = state.curtailment?.now;
-      const key = !now ? 'unknown' : now.curtailedMW > 0 ? 'constrained' : 'clear';
-      setText(note, spec.caption[key]);
+      if (!now) {
+        setText(note, spec.caption.unknown);
+      } else {
+        const tense = speaksOfNow(state.curtailment?.fetchedAt, now.settlement, state.now)
+          ? 'now'
+          : 'past';
+        setText(note, spec.caption[now.curtailedMW > 0 ? 'constrained' : 'clear'][tense]);
+      }
+
+      if (!region && state.pending) {
+        setAttr(root, 'data-state', 'pending');
+        setText(place, spec.side === 'north' ? 'Scotland' : 'South England');
+        setText(leadFigure, 'Reading');
+        setText(intensity, 'Waiting for Carbon Intensity');
+        for (const { seg, label } of segments.values()) {
+          seg.style.flexBasis = '0%';
+          setText(label, '');
+        }
+        legend.replaceChildren();
+        setAttr(foot, 'data-empty', 'true');
+        return;
+      }
 
       if (!region) {
         setAttr(root, 'data-state', 'failed');
@@ -140,9 +166,14 @@ export const NORTH: BandSpec = {
   eyebrow: 'The wind is here',
   lead: 'wind',
   caption: {
-    constrained:
-      'Scotland is generating more than it can use, and more than the network can carry away.',
-    clear: 'Scotland is generating less than the network south of it can carry.',
+    constrained: {
+      now: 'Scotland is generating more than it can use, and more than the network can carry away.',
+      past: 'Scotland was generating more than it could use, and more than the network could carry away.',
+    },
+    clear: {
+      now: 'Scotland is generating less than the network south of it can carry.',
+      past: 'Scotland was generating less than the network south of it could carry.',
+    },
     unknown: 'How much of this reaches the south cannot be read this half-hour.',
   },
   pick: (r) => r.scotland ?? r.northScotland,
@@ -153,8 +184,14 @@ export const SOUTH: BandSpec = {
   eyebrow: 'The demand is here',
   lead: 'gas',
   caption: {
-    constrained: 'With the northern wind held back, gas plants in the south make up the difference.',
-    clear: 'Southern demand is being met close to home, largely by gas.',
+    constrained: {
+      now: 'With the northern wind held back, gas plants in the south make up the difference.',
+      past: 'With the northern wind held back, gas plants in the south made up the difference.',
+    },
+    clear: {
+      now: 'Southern demand is being met close to home, largely by gas.',
+      past: 'Southern demand was being met close to home, largely by gas.',
+    },
     unknown: 'Southern demand leans on gas whenever northern wind cannot reach it.',
   },
   pick: (r) => r.southEngland ?? r.southEastEngland,

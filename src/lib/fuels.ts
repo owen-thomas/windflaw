@@ -24,9 +24,6 @@ export const FUEL_ORDER = [
 
 export type Fuel = (typeof FUEL_ORDER)[number];
 
-/** Where the fossil tail begins, for the "carbon-bearing" divider on the bar. */
-export const FOSSIL_FUELS = new Set<string>(['gas', 'coal']);
-
 export function orderMix<T extends { fuel: string; perc: number }>(mix: T[]): T[] {
   const rank = (fuel: string) => {
     const index = FUEL_ORDER.indexOf(fuel as Fuel);

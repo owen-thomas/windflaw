@@ -150,7 +150,7 @@ The `fetchedAt` rule is forced by the caching decision in 005. A CDN hit can be 
 
 `stale-while-revalidate` also buys graceful degradation free: if an upstream goes slow, visitors keep receiving the last good payload while the refresh happens behind them, which is exactly the behaviour section 5.4 asks for.
 
-The five-minute TTL sits well inside the thirty-minute settlement period, so the cache never hides a rollover.
+The five-minute TTL sits well inside the thirty-minute settlement period, so the cache never hides a rollover. **Wrong, corrected in 017:** a TTL inside a period does not align with one, and a cached response can describe a period that closed while it sat in the CDN.
 
 **What was rejected:** In-memory caching inside the function (does not survive between invocations); a database or KV store (the project plan rules out storage in slice one, and the CDN already provides the shared layer); no caching (impolite to a free public API, and every visitor would pay full upstream latency).
 
@@ -381,5 +381,45 @@ Three days sit within 2% where three sat within 1%, and 22 July's difference is 
 **Consequence for the product:** the method note's coverage line is generated from the payload, so it now reads 112 units and 13,105 MW, and "transmission-connected Scottish wind units" is finally the population rather than a subset of it. The cross-check paragraph is rewritten against the new table, including the 17%.
 
 **What was rejected:** adding only the ~21 farms the 13 June split named (that repeats the original error — patching a list by recognition instead of enumerating a population, and the next constrained day would find the next gap); deriving membership at runtime from `gspGroupId` (not populated for T units, so it would silently empty the list); keeping the old capacities where they differed from the registry (two sources for one number is how 002's 8,533-vs-8,574 drift happened).
+
+---
+
+## 016 — "Has not answered yet" is a state, and the page was skipping it
+
+**Date:** 2026-07-24
+**Phase:** Phase 1 (review follow-up)
+**Decision:** Model the pre-first-fetch state explicitly. The four states in 010 become five, with a sixth screen (`?state=waiting`) in the toggle.
+
+**The failure.** `main.ts` rendered synchronously with empty feeds, before `refresh()` had issued a request. With no loading state in the model, empty-and-untried rendered identically to tried-and-failed, so every cold load opened on three confident false claims: "Windfall is not reaching its data sources", "Elexon's balancing data did not answer this time", "no reading arrived this half-hour". It was the exact failure 010 names, on the first screen a reader following a link ever sees, and it lasted as long as the first fetch took — longer on a cold function with a CDN miss. `data-boot` was no help either: it was set before the fetch resolved.
+
+**The distinction, which is the whole entry:** *did not answer* is a claim about a source. *Has not answered yet* is a claim about us. The page may only make the first one after it has actually asked.
+
+So `AppState.pending` is true until the first fetch settles, the copy in that state describes what the product is doing and asserts nothing about the data ("Windfall is asking Elexon what is being held down this half-hour. Nothing is claimed until it answers"), the freshness dot is drawn hollow because green, amber and red are each already a claim, and `data-boot = 'ready'` now marks the first *resolved* fetch.
+
+**What was rejected:** a spinner (it says "wait" and nothing about what is being waited for, and this page has room to say it in words); holding the first paint until data arrives (a blank screen is not more honest than one that says what it is doing); keeping the strapline off the waiting screen (a reader who has just followed a link still needs the product introduced — the notice slot is only spent on warnings, per the masthead's slot rule).
+
+---
+
+## 017 — Rollover is not staleness, and tense is a page-wide rule
+
+**Date:** 2026-07-24
+**Phase:** Phase 1 (review follow-up)
+**Decision:** Currency is two independent questions — how old is the reading, and is the period it describes still running — and every present-tense claim on the page answers both before it is printed.
+
+**Rollover.** 005 claimed the 5-minute TTL "sits well inside the thirty-minute settlement period, so the cache never hides a rollover". That is wrong: a TTL inside a period does not align with one. Land just after a rollover and a CDN hit produced "Settlement period 47 · 23:00 to 23:30 · Read 4 minutes ago" under a green dot while period 48 was running — and inside the stale-while-revalidate window it could be older still. Freshness was computed only from `fetchedAt`, so nothing on the client ever compared the payload's period against the period actually running. `msUntilRollover` already existed in `settlement.ts` and was unused; the payload names its own period and that period has an end time, so the comparison is exact. The masthead now names the closed period and the clock drops to amber.
+
+**Tense.** 010's argument — a stale reading under a present-tense claim is wrong regardless of what colour the timestamp is — was applied to the headline only. Directly beneath a correctly past-tense headline, the constraint still read "The transmission network ... **is** full" and the north band "Scotland **is** generating more than it can use", both against a 47-minute-old reading. The caption machinery already selected on state; freshness is one more axis, and it now runs through the constraint, both band captions and the narration. The narration takes the cautious reading: every feed it draws on must be current for it to speak in the present.
+
+Each element asks about *its own* payload rather than the page's worst feed, for the same reason each owns its own health — the mix can be current while the curtailment reading is not. That is `speaksOfNow(fetchedAt, settlement, now)` in `state.ts`, taking the element's own two facts.
+
+**Also fixed under this heading, all of them the same species of small dishonesty or noise:**
+
+- **The narration fabricated a zero.** `Math.round(forecast ?? actual ?? 0)` stated 0 gCO₂/kWh as fact when both readings were null, where `formatIntensity` says "unknown" for exactly that case. This text is phase 2's guaranteed fallback, so the invented figure would have shipped as the thing shown when generation fails. It now omits the clause.
+- **"1 grams".** Same expression, and live on screen: 1 gCO₂/kWh is an ordinary Scottish reading on a windy day, i.e. the flagship state.
+- **A forecast-only outage downgraded a healthy source.** `overall` folded in the 24-hour forecast, which per 011 is deliberately not drawn, so Carbon Intensity could report "partly answering" with every visible element fine. It now folds national and regional only — nothing owns the forecast yet.
+- **`role="separator"` on the constraint.** ARIA treats a non-focusable separator as children-presentational, putting a link in the paradox chain at risk of not being announced. It is a content block drawn with rules, and the rules were already `aria-hidden`.
+- **The dev toggle covered the argument.** Fixed-positioned, it sat over the south band's caption at desktop widths in every state — and 012 says the capture pack comes from these deployed screens. It now follows the colophon in normal flow, out of the composition entirely.
+- **"and Edinbane and Gordonbush".** `joinList` already supplies the "and".
+- **Dead exports** `msUntilRollover` (now load-bearing) and `FOSSIL_FUELS` (deleted).
 
 ---

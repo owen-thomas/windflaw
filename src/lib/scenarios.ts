@@ -16,7 +16,7 @@
 import type { CurtailmentResponse, GridResponse } from './types';
 import { previousPeriod, settlementAt } from './settlement';
 import { SAMPLE_CURTAILMENT, SAMPLE_GRID } from './sample';
-import type { Feeds } from './state';
+import { emptyFeeds, type Feeds } from './state';
 
 export interface Scenario {
   name: string;
@@ -25,6 +25,8 @@ export interface Scenario {
   note: string;
   /** Null means fetch live. */
   build: ((now: Date) => Feeds) | null;
+  /** Renders the page as it looks before the first fetch has answered. */
+  pending?: true;
 }
 
 /** Move a captured payload's clocks onto the real settlement timeline. */
@@ -136,6 +138,13 @@ export const SCENARIOS: Scenario[] = [
       const { grid, curtailment } = rebase(now, 47 * 60 * 1000);
       return feeds(grid, curtailment);
     },
+  },
+  {
+    name: 'waiting',
+    label: 'Waiting',
+    note: 'The first fetch has not answered yet. The page claims nothing.',
+    build: () => emptyFeeds(),
+    pending: true,
   },
   {
     name: 'offline',

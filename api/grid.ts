@@ -37,7 +37,12 @@ export default async function handler(_req: ApiRequest, res: ApiResponse) {
     fetchedAt: new Date().toISOString(),
     settlement: settlementAt(),
     health: {
-      overall: overallHealth([nationalHealth, regionalHealth, forecastHealth]),
+      // The 24-hour forecast is fetched but deliberately not drawn
+      // (DECISIONS 011), so a forecast-only outage must not downgrade the
+      // source: it would report Carbon Intensity as partly answering while
+      // every visible element on the page is fine. Each element owns its own
+      // health, and nothing owns this one yet.
+      overall: overallHealth([nationalHealth, regionalHealth]),
       national: nationalHealth,
       regional: regionalHealth,
       forecast: forecastHealth,

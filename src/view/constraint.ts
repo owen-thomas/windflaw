@@ -11,15 +11,32 @@
  */
 
 import { el, setAttr, setText, type View } from './dom';
-import type { AppState } from '../lib/state';
+import { speaksOfNow, type AppState } from '../lib/state';
 
-const CONSTRAINED =
-  'The transmission network between Scotland and England is full. Power that cannot ' +
-  'flow south is paid to stop.';
+/*
+ * Both readings come in a present and a past tense. A stale or superseded
+ * reading under a present-tense claim is wrong whatever colour the timestamp
+ * is (DECISIONS 010), and “is full” is as much a claim about now as the
+ * headline above it. The unknown copy needs no pair: it describes the
+ * network's standing role rather than its state this half-hour.
+ */
+const CONSTRAINED = {
+  now:
+    'The transmission network between Scotland and England is full. Power that cannot ' +
+    'flow south is paid to stop.',
+  past:
+    'The transmission network between Scotland and England was full when this was last ' +
+    'read. Power that could not flow south was paid to stop.',
+};
 
-const CLEAR =
-  'The transmission network between Scotland and England has room this half-hour. ' +
-  'What the north makes can travel south.';
+const CLEAR = {
+  now:
+    'The transmission network between Scotland and England has room this half-hour. ' +
+    'What the north makes can travel south.',
+  past:
+    'The transmission network between Scotland and England had room when this was last ' +
+    'read. What the north made could travel south.',
+};
 
 const UNKNOWN =
   'The transmission network between Scotland and England is the limit on how much ' +
@@ -29,7 +46,11 @@ export function constraintView(): View {
   const body = el('p', { class: 'constraint__body' });
   const root = el(
     'div',
-    { class: 'constraint', 'data-state': 'unknown', role: 'separator', 'aria-orientation': 'horizontal' },
+    // Not role="separator": ARIA treats a non-focusable separator as
+    // children-presentational, which would drop a link in the paradox chain
+    // out of the accessible reading. It is a content block that happens to be
+    // drawn with rules, and the rules themselves are already hidden.
+    { class: 'constraint', 'data-state': 'unknown' },
     el('span', { class: 'constraint__rule', 'aria-hidden': 'true' }),
     el(
       'div',
@@ -50,8 +71,11 @@ export function constraintView(): View {
         return;
       }
       const constrained = now.curtailedMW > 0;
+      const tense = speaksOfNow(state.curtailment?.fetchedAt, now.settlement, state.now)
+        ? 'now'
+        : 'past';
       setAttr(root, 'data-state', constrained ? 'constrained' : 'clear');
-      setText(body, constrained ? CONSTRAINED : CLEAR);
+      setText(body, constrained ? CONSTRAINED[tense] : CLEAR[tense]);
     },
   };
 }

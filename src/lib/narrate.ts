@@ -20,9 +20,32 @@ export interface Narration {
   provenance: 'template' | 'generated';
 }
 
+/**
+ * Grams in words, or nothing at all.
+ *
+ * A missing reading is missing: it is not zero, and zero is a remarkable
+ * claim to make about a grid. The band view says "unknown" in the same case
+ * (format.ts), and this text is what ships whenever generation fails, so a
+ * number invented here is a number the product tells a reader as fact.
+ * The singular matters too — 1 gCO₂/kWh is an ordinary Scottish reading on a
+ * windy day, which is to say the flagship state.
+ */
+function grams(value: number | null): string | null {
+  if (value === null) return null;
+  const rounded = Math.round(value);
+  return `${rounded} ${rounded === 1 ? 'gram' : 'grams'}`;
+}
+
+/**
+ * `present` is false once the reading has gone stale or its settlement period
+ * has closed. The narration is the longest piece of prose on the page and so
+ * the most expensive place to leave the tense wrong; the rule is the same one
+ * the headline and the constraint follow (DECISIONS 010).
+ */
 export function narrate(
   grid: GridResponse | null,
-  curtailment: CurtailmentResponse | null
+  curtailment: CurtailmentResponse | null,
+  present = true
 ): Narration | null {
   const north = grid?.regions?.scotland ?? grid?.regions?.northScotland ?? null;
   const south = grid?.regions?.southEngland ?? grid?.regions?.southEastEngland ?? null;
@@ -31,30 +54,38 @@ export function narrate(
   const parts: string[] = [];
 
   if (north) {
+    const intensity = grams(north.intensity.forecast ?? north.intensity.actual);
     parts.push(
-      `Scotland is running at around ${formatPct(north.windPct)} wind this half-hour, ` +
-        `at ${Math.round(north.intensity.forecast ?? north.intensity.actual ?? 0)} grams of ` +
-        `carbon dioxide per kilowatt-hour.`
+      `Scotland ${present ? 'is' : 'was'} running at around ${formatPct(north.windPct)} wind ` +
+        `${present ? 'this half-hour' : 'when this was last read'}` +
+        (intensity
+          ? `, at ${intensity} of carbon dioxide per kilowatt-hour.`
+          : `. Its carbon intensity ${present ? 'is not being' : 'was not'} reported.`)
     );
   }
 
   if (south) {
+    const intensity = grams(south.intensity.forecast ?? south.intensity.actual);
     parts.push(
-      `South England is at ${formatPct(south.gasPct)} gas and ` +
-        `${Math.round(south.intensity.forecast ?? south.intensity.actual ?? 0)} grams.`
+      `South England ${present ? 'is' : 'was'} at ${formatPct(south.gasPct)} gas` +
+        (intensity ? ` and ${intensity}.` : ', with no intensity reading.')
     );
   }
 
   const now = curtailment?.now;
   if (now && now.curtailedMW > 0) {
     parts.push(
-      `At least ${formatMW(now.curtailedMW)} of Scottish wind is instructed to stop, because ` +
-        `the network south cannot carry it.`
+      `At least ${formatMW(now.curtailedMW)} of Scottish wind ` +
+        `${present ? 'is' : 'was'} instructed to stop, because the network south ` +
+        `${present ? 'cannot' : 'could not'} carry it.`
     );
   } else if (now) {
     parts.push(
-      'No tracked Scottish wind is currently instructed to stop; the network is carrying ' +
-        'what the north is making.'
+      present
+        ? 'No tracked Scottish wind is currently instructed to stop; the network is carrying ' +
+            'what the north is making.'
+        : 'No tracked Scottish wind was instructed to stop; the network was carrying what the ' +
+            'north was making.'
     );
   } else {
     parts.push('The curtailment reading is unavailable this half-hour.');

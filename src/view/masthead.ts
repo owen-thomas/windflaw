@@ -8,8 +8,8 @@
  */
 
 import { el, setAttr, setText, type View } from './dom';
-import { formatAge, formatPeriodSpan } from '../lib/format';
-import { overallAge, type AppState } from '../lib/state';
+import { formatAge, formatPeriodSpan, formatTime } from '../lib/format';
+import { describesNow, overallAge, settlementOf, type AppState } from '../lib/state';
 
 const STANDFIRST =
   'What Britain’s grid is doing right now, and how much Scottish wind is being ' +
@@ -53,7 +53,7 @@ export function mastheadView(): View {
   return {
     el: root,
     update(state: AppState) {
-      const settlement = state.grid?.settlement ?? state.curtailment?.now?.settlement ?? null;
+      const settlement = settlementOf(state);
 
       if (settlement) {
         setText(period, `Settlement period ${settlement.period}`);
@@ -64,6 +64,19 @@ export function mastheadView(): View {
       }
 
       const reading = overallAge(state);
+
+      // Not yet asked is not the same as asked and refused. Until the first
+      // fetch resolves the page says what it is doing and claims nothing
+      // else; the strapline stays, because the product still needs
+      // introducing to whoever has just followed the link.
+      if (!reading && state.pending) {
+        setText(age, 'Reading');
+        setAttr(clock, 'data-freshness', 'pending');
+        setAttr(note, 'data-role', 'standfirst');
+        setText(note, STANDFIRST);
+        return;
+      }
+
       if (!reading) {
         setText(age, 'No reading');
         setAttr(clock, 'data-freshness', 'failed');
@@ -82,6 +95,22 @@ export function mastheadView(): View {
           ? `Last read ${formatAge(reading.ms)}`
           : `Read ${formatAge(reading.ms)}`
       );
+
+      // A reading can be minutes old and already describe a period that has
+      // closed: the CDN TTL sits inside a settlement period but does not
+      // align with one. Rollover is its own kind of out-of-date and gets its
+      // own sentence (DECISIONS 006).
+      if (reading.freshness !== 'stale' && !describesNow(state) && settlement) {
+        setAttr(clock, 'data-freshness', 'ageing');
+        setAttr(note, 'data-role', 'warning');
+        setText(
+          note,
+          `Settlement period ${settlement.period} closed at ` +
+            `${formatTime(settlement.periodEnd)}. The figures below describe it, not the ` +
+            'period now running.'
+        );
+        return;
+      }
 
       if (reading.freshness === 'stale') {
         setAttr(note, 'data-role', 'warning');

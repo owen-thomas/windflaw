@@ -15,7 +15,7 @@
 
 import { el, setAttr, setText, type View } from './dom';
 import { narrate } from '../lib/narrate';
-import type { AppState } from '../lib/state';
+import { speaksOfNow, settlementOf, type AppState } from '../lib/state';
 
 export function narrationView(): View {
   const body = el('p', { class: 'narration__body' });
@@ -31,7 +31,21 @@ export function narrationView(): View {
   return {
     el: root,
     update(state: AppState) {
-      const narration = narrate(state.grid, state.curtailment);
+      const settlement = settlementOf(state);
+      // One paragraph, one tense, and the cautious reading wins: every feed
+      // it draws on has to be current for it to speak in the present.
+      const present =
+        (!state.grid || speaksOfNow(state.grid.fetchedAt, state.grid.settlement, state.now)) &&
+        (!state.curtailment?.now ||
+          speaksOfNow(state.curtailment.fetchedAt, state.curtailment.now.settlement, state.now));
+      const narration = narrate(state.grid, state.curtailment, present);
+
+      if (!narration && state.pending) {
+        setAttr(root, 'data-provenance', 'none');
+        setText(body, 'Waiting for this half-hour’s readings.');
+        setText(strap, 'Nothing is described until the sources have answered.');
+        return;
+      }
 
       if (!narration) {
         setAttr(root, 'data-provenance', 'none');
@@ -40,7 +54,7 @@ export function narrationView(): View {
         return;
       }
 
-      const period = state.grid?.settlement?.period ?? state.curtailment?.now?.settlement.period;
+      const period = settlement?.period;
       setAttr(root, 'data-provenance', narration.provenance);
       setText(body, narration.text);
       setText(

@@ -36,6 +36,7 @@ const state: AppState = {
   ...emptyFeeds(),
   now: new Date(),
   scenario: scenarioName,
+  pending: true,
 };
 
 const screen = screenView();
@@ -63,22 +64,32 @@ async function refresh() {
 
   if (scenario.build) {
     Object.assign(state, scenario.build(new Date()));
+    state.pending = scenario.pending ?? false;
     render();
     return;
   }
 
-  const feeds = await fetchFeeds();
-  // Keep the last good payload when a feed fails; only the error is new.
-  if (feeds.grid) state.grid = feeds.grid;
-  state.gridError = feeds.gridError;
-  if (feeds.curtailment) state.curtailment = feeds.curtailment;
-  state.curtailmentError = feeds.curtailmentError;
-  render();
+  try {
+    const feeds = await fetchFeeds();
+    // Keep the last good payload when a feed fails; only the error is new.
+    if (feeds.grid) state.grid = feeds.grid;
+    state.gridError = feeds.gridError;
+    if (feeds.curtailment) state.curtailment = feeds.curtailment;
+    state.curtailmentError = feeds.curtailmentError;
+  } finally {
+    // The first attempt has now happened, whatever it returned. Everything
+    // after this point may honestly be described as tried.
+    state.pending = false;
+    render();
+  }
 }
 
 render();
-void refresh();
-app.dataset.boot = 'ready';
+// `boot` marks the first resolved fetch, not the first paint: capture work
+// and any future gating want the answered page, not the asking one.
+void refresh().then(() => {
+  app.dataset.boot = 'ready';
+});
 
 setInterval(render, TICK_MS);
 setInterval(() => void refresh(), REFETCH_MS);

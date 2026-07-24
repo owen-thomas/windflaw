@@ -15,7 +15,7 @@
 import { clear, el, setAttr, setText, type View } from './dom';
 import { formatMW, formatMWh, formatPct, formatPeriodSpan, joinList } from '../lib/format';
 import type { CurtailedUnit, CurtailmentResponse } from '../lib/types';
-import { ageOf, type AppState } from '../lib/state';
+import { speaksOfNow, type AppState } from '../lib/state';
 
 /** Farms below this share of the headline are folded into "and others". */
 const NAMED_FARMS = 4;
@@ -52,7 +52,23 @@ export function headlineView(): View {
     el: root,
     update(state: AppState) {
       const data = state.curtailment;
-      const stale = ageOf(data?.fetchedAt, state.now)?.freshness === 'stale';
+      const present = speaksOfNow(data?.fetchedAt, data?.now?.settlement, state.now);
+
+      if (!data?.now && state.pending) {
+        setAttr(root, 'data-state', 'pending');
+        setText(eyebrow, 'Wind switched off');
+        setText(figure, 'Reading');
+        setText(
+          predicate,
+          'Windfall is asking Elexon what is being held down this half-hour. Nothing is ' +
+            'claimed until it answers.'
+        );
+        shareFill.style.width = '0%';
+        setText(shareNote, '');
+        setText(farms, '');
+        setText(settled, '');
+        return;
+      }
 
       if (!data || !data.now) {
         setAttr(root, 'data-state', 'failed');
@@ -79,7 +95,9 @@ export function headlineView(): View {
         setText(figure, 'None');
         setText(
           predicate,
-          'of Scotland’s tracked wind is being instructed off. The network is carrying what it makes.'
+          present
+            ? 'of Scotland’s tracked wind is being instructed off. The network is carrying what it makes.'
+            : 'of Scotland’s tracked wind was being instructed off when this was last read.'
         );
         shareFill.style.width = '0%';
         setText(shareNote, `Nothing held down across ${data.method.unitsTracked} tracked units.`);
@@ -96,9 +114,9 @@ export function headlineView(): View {
       // with it — a colour change would not undo the word.
       setText(
         predicate,
-        stale
-          ? 'of Scottish wind was being held off the grid when this was last read.'
-          : 'of Scottish wind is being held off the grid, right now.'
+        present
+          ? 'of Scottish wind is being held off the grid, right now.'
+          : 'of Scottish wind was being held off the grid when this was last read.'
       );
 
       const share = (curtailedMW / data.method.capacityMW) * 100;
@@ -156,7 +174,7 @@ function farmNodes(units: CurtailedUnit[]): Node[] {
         class: 'farms__rest',
         text:
           names.length <= 3
-            ? `and ${joinList(names)}`
+            ? joinList(names)
             : `and ${names.length} more, ${joinList(names.slice(0, 2))} among them`,
       })
     );

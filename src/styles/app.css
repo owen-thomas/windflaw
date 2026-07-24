@@ -161,6 +161,20 @@ body {
   color: var(--signal-failed);
 }
 
+/*
+ * Waiting is not failing. The dot is drawn hollow rather than coloured: no
+ * claim has been made about the data yet, and a green, amber or red dot would
+ * each be one. See DECISIONS 016.
+ */
+.clock[data-freshness='pending'] .clock__age {
+  color: var(--text-muted);
+}
+
+.clock[data-freshness='pending'] .clock__age::before {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--ink-line-strong);
+}
+
 /* --- The paradox stack -------------------------------------------------- */
 
 .paradox {
@@ -258,6 +272,13 @@ body {
 .band[data-state='failed'] .band__lead,
 .band[data-state='failed'] .band__intensity {
   color: var(--signal-failed);
+  font-weight: var(--wt-light);
+}
+
+.band[data-state='pending'] .band__lead,
+.band[data-state='pending'] .band__intensity,
+.headline[data-state='pending'] .headline__figure {
+  color: var(--text-muted);
   font-weight: var(--wt-light);
 }
 
@@ -439,8 +460,13 @@ body {
 
 /* An empty fill must leave no trace, or "none" still looks like a little. */
 .headline[data-state='none'] .share__fill,
-.headline[data-state='failed'] .share__fill {
+.headline[data-state='failed'] .share__fill,
+.headline[data-state='pending'] .share__fill {
   box-shadow: none;
+}
+
+.headline[data-state='pending'] .headline__figure {
+  font-size: clamp(2rem, 4vw, 3rem);
 }
 
 .share__note,
@@ -673,12 +699,17 @@ body {
 
 /* --- State toggle (scaffolding) ----------------------------------------- */
 
+/*
+ * Not fixed. A floating panel sits over the south band's caption at every
+ * desktop width, and the case study captures come from these screens
+ * (DECISIONS 012) — scaffolding across the argument would be in all of them.
+ * It follows the colophon instead: out of the composition entirely, at the
+ * one place on the page where nothing is being claimed.
+ */
 .toggle {
-  position: fixed;
-  right: var(--gap-sm);
-  bottom: var(--gap-sm);
-  z-index: 10;
   display: grid;
+  justify-self: start;
+  margin: 0 var(--gap-sm) var(--gap-sm);
   gap: 0.4rem;
   max-width: 22rem;
   padding: 0.6rem 0.7rem;
@@ -806,9 +837,7 @@ body {
   }
 
   .toggle {
-    left: var(--gap-xs);
-    right: var(--gap-xs);
-    bottom: var(--gap-xs);
+    margin: 0 var(--gap-xs) var(--gap-xs);
     max-width: none;
   }
 

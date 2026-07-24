@@ -1,0 +1,82 @@
+/*
+ * Design tokens.
+ *
+ * Dark ground only for slice one. The screen is an editorial artefact rather
+ * than an application chrome, and the reference (earth.nullschool) is a lit
+ * field on a dark ground — a light variant would be a second design, not a
+ * setting.
+ *
+ * Colour never carries meaning alone: every fuel segment is labelled, every
+ * health state has a word, and the curtailed segment is hatched as well as
+ * dimmed. See --hatch below.
+ */
+
+:root {
+  /* --- Type ------------------------------------------------------------ */
+  /* Provisional. DM Sans is the working default, not a settled identity —
+     swapping it is this one declaration. */
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --wt-light: 300;
+  --wt-regular: 400;
+  --wt-medium: 500;
+  --wt-bold: 700;
+
+  /* Figures are read against each other and across refreshes, so they are
+     tabular everywhere. */
+  --figures: 'tnum' 1, 'lnum' 1;
+
+  /* --- Ground ---------------------------------------------------------- */
+  --ink-void: #070a0d;
+  --ink-ground: #0b1014;
+  --ink-raised: #121a20;
+  --ink-line: #1e2a33;
+  --ink-line-strong: #33454f;
+
+  --text-primary: #e8eef2;
+  --text-secondary: #9aabb5;
+  --text-muted: #64777f;
+
+  /* --- Fuels ----------------------------------------------------------- */
+  /* Wind is the protagonist and gets the most saturated hue on the page.
+     Gas is its warm opposite. Everything else recedes towards the ground. */
+  --fuel-wind: #4fd6c1;
+  --fuel-gas: #e0854a;
+  --fuel-nuclear: #7d8fc4;
+  --fuel-solar: #d9c45f;
+  --fuel-hydro: #4f9ad6;
+  --fuel-biomass: #7fa05c;
+  --fuel-imports: #5c6b78;
+  --fuel-coal: #6b5a55;
+  --fuel-other: #4a5560;
+
+  /* Curtailed wind is wind, extinguished — a dimmed wind hue rather than a
+     warning colour. It is not an error; it is the subject. */
+  --curtailed: #2f6b64;
+  --curtailed-edge: #4fd6c1;
+
+  /* --- Signal ---------------------------------------------------------- */
+  --signal-ok: #4fd6c1;
+  --signal-ageing: #d9c45f;
+  --signal-stale: #e0854a;
+  --signal-failed: #cf6b5a;
+
+  /* Diagonal hatch for the curtailed segment: a second, non-colour carrier
+     of "this is switched off". */
+  --hatch: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    rgb(79 214 193 / 0.28) 3px 4px
+  );
+
+  /* --- Space ----------------------------------------------------------- */
+  --gap-hair: 0.25rem;
+  --gap-xs: 0.5rem;
+  --gap-sm: 0.75rem;
+  --gap-md: 1.25rem;
+  --gap-lg: 2rem;
+  --gap-xl: 3rem;
+
+  --rule: 1px;
+  --page-x: clamp(1.25rem, 4vw, 4rem);
+}

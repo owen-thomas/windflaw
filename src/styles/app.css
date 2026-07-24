@@ -1,0 +1,818 @@
+/*
+ * Windfall — the screen.
+ *
+ * The composition is a north–south section through Britain, read top to
+ * bottom: what Scotland is making, how much of it is switched off, the line
+ * that stops it travelling, and what burns in the south instead. Both region
+ * bars are drawn on the same scale in the same fuel order, so the argument is
+ * visible before a number is read.
+ *
+ * Type is deliberately narrow in range: one family, light for the large
+ * figures and medium for the small ones. Weight, not colour, carries
+ * hierarchy — which leaves colour free to mean fuel, and only fuel.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink-void);
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #0e1a1d 0%, var(--ink-ground) 55%, var(--ink-void) 100%);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-weight: var(--wt-regular);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--figures);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fuel-wind);
+  outline-offset: 3px;
+}
+
+/* --- Shell -------------------------------------------------------------- */
+
+.screen {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: var(--gap-md);
+  min-height: 100svh;
+  max-width: 78rem;
+  margin-inline: auto;
+  padding: var(--gap-md) var(--page-x);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: var(--wt-medium);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Masthead ----------------------------------------------------------- */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  padding-bottom: var(--gap-md);
+  border-bottom: var(--rule) solid var(--ink-line);
+}
+
+.masthead__id {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--gap-md);
+  max-width: 62ch;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: var(--wt-bold);
+  letter-spacing: -0.02em;
+}
+
+.standfirst {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 0.9rem;
+  font-weight: var(--wt-light);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* The slot in its other role: the reading is old and says so, in words. */
+.standfirst[data-role='warning'] {
+  padding-left: var(--gap-xs);
+  border-left: 2px solid var(--signal-stale);
+  color: var(--signal-stale);
+}
+
+.clock {
+  display: grid;
+  justify-items: end;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.clock__period {
+  font-weight: var(--wt-medium);
+  color: var(--text-secondary);
+}
+
+.clock__span {
+  color: var(--text-muted);
+}
+
+.clock__age {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.clock__age::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--signal-ok);
+}
+
+.clock[data-freshness='ageing'] .clock__age::before {
+  background: var(--signal-ageing);
+}
+
+.clock[data-freshness='stale'] .clock__age {
+  color: var(--signal-stale);
+}
+
+.clock[data-freshness='stale'] .clock__age::before {
+  background: var(--signal-stale);
+}
+
+.clock[data-freshness='failed'] .clock__age {
+  color: var(--signal-failed);
+}
+
+.clock[data-freshness='failed'] .clock__age::before {
+  background: none;
+  width: auto;
+  height: auto;
+  content: '×';
+  color: var(--signal-failed);
+}
+
+/* --- The paradox stack -------------------------------------------------- */
+
+.paradox {
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  align-content: center;
+  gap: var(--gap-md);
+}
+
+/* --- Region bands ------------------------------------------------------- */
+
+.band {
+  display: grid;
+  gap: var(--gap-xs);
+}
+
+/*
+ * Legend and caption share a line. The legend is the bar's accessible
+ * reading and the caption is its meaning; setting them on one baseline keeps
+ * the band to four lines so both bands and the constraint fit one screen.
+ */
+.band__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-xs) var(--gap-lg);
+}
+
+/* With no mix to legend, the caption has nothing to sit opposite. */
+.band__foot[data-empty='true'] {
+  justify-content: flex-start;
+}
+
+.band__foot[data-empty='true'] .legend {
+  display: none;
+}
+
+.band__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--gap-sm) var(--gap-md);
+}
+
+.band__id {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.band__place {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  font-weight: var(--wt-light);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.band__reading {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  font-weight: var(--wt-medium);
+}
+
+.band[data-side='north'] .band__lead {
+  color: var(--fuel-wind);
+}
+
+.band[data-side='south'] .band__lead {
+  color: var(--fuel-gas);
+}
+
+.band__sep {
+  color: var(--ink-line-strong);
+}
+
+.band__intensity {
+  font-weight: var(--wt-light);
+  color: var(--text-secondary);
+}
+
+.band__caption {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 0.82rem;
+  font-weight: var(--wt-light);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.band[data-state='failed'] .band__lead,
+.band[data-state='failed'] .band__intensity {
+  color: var(--signal-failed);
+  font-weight: var(--wt-light);
+}
+
+/* --- Mix bar ------------------------------------------------------------ */
+
+.mix {
+  display: flex;
+  height: 2.6rem;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ink-raised);
+  box-shadow: inset 0 0 0 1px var(--ink-line);
+}
+
+.mix__seg {
+  flex-grow: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /*
+   * No padding on the segment itself: it would give a zero-width fuel an
+   * intrinsic size, and nine absent fuels would render as a row of coloured
+   * stubs. The inset spacing belongs to the label.
+   */
+  overflow: hidden;
+  box-shadow: inset -1px 0 0 rgb(7 10 13 / 0.55);
+}
+
+.mix__seg[data-empty='true'] {
+  box-shadow: none;
+}
+
+.mix__label {
+  padding-inline: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: var(--wt-medium);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--ink-void);
+}
+
+.mix__seg[data-fuel='wind'] { background: var(--fuel-wind); }
+.mix__seg[data-fuel='hydro'] { background: var(--fuel-hydro); }
+.mix__seg[data-fuel='solar'] { background: var(--fuel-solar); }
+.mix__seg[data-fuel='nuclear'] { background: var(--fuel-nuclear); }
+.mix__seg[data-fuel='biomass'] { background: var(--fuel-biomass); }
+.mix__seg[data-fuel='imports'] { background: var(--fuel-imports); }
+.mix__seg[data-fuel='gas'] { background: var(--fuel-gas); }
+.mix__seg[data-fuel='coal'] { background: var(--fuel-coal); }
+.mix__seg[data-fuel='other'] { background: var(--fuel-other); }
+
+/* Dark fuels need light labels. */
+.mix__seg[data-fuel='imports'] .mix__label,
+.mix__seg[data-fuel='coal'] .mix__label,
+.mix__seg[data-fuel='other'] .mix__label {
+  color: var(--text-primary);
+}
+
+/* --- Legend (the accessible reading of the bar) ------------------------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem var(--gap-md);
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend dt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+}
+
+.legend dd {
+  margin: 0;
+  font-weight: var(--wt-medium);
+  color: var(--text-primary);
+}
+
+.legend__swatch {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 1px;
+  background: var(--fuel-other);
+}
+
+.legend dt[data-fuel='wind'] .legend__swatch { background: var(--fuel-wind); }
+.legend dt[data-fuel='hydro'] .legend__swatch { background: var(--fuel-hydro); }
+.legend dt[data-fuel='solar'] .legend__swatch { background: var(--fuel-solar); }
+.legend dt[data-fuel='nuclear'] .legend__swatch { background: var(--fuel-nuclear); }
+.legend dt[data-fuel='biomass'] .legend__swatch { background: var(--fuel-biomass); }
+.legend dt[data-fuel='imports'] .legend__swatch { background: var(--fuel-imports); }
+.legend dt[data-fuel='gas'] .legend__swatch { background: var(--fuel-gas); }
+.legend dt[data-fuel='coal'] .legend__swatch { background: var(--fuel-coal); }
+
+/* --- Headline ----------------------------------------------------------- */
+
+.headline {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(20rem, 1fr);
+  align-items: end;
+  gap: var(--gap-xs) var(--gap-xl);
+  padding-block: var(--gap-xs);
+}
+
+.headline__claim {
+  display: grid;
+  gap: var(--gap-hair);
+}
+
+.headline__evidence {
+  display: grid;
+  gap: var(--gap-hair);
+  padding-bottom: 0.35rem;
+}
+
+.headline__eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: var(--wt-medium);
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.headline__line {
+  margin: 0;
+  line-height: 0.92;
+}
+
+.headline__figure {
+  font-size: clamp(2.75rem, 6vw, 5.25rem);
+  font-weight: var(--wt-light);
+  letter-spacing: -0.04em;
+  color: var(--fuel-wind);
+}
+
+.headline__predicate {
+  margin: 0;
+  max-width: 40ch;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  font-weight: var(--wt-light);
+  line-height: 1.35;
+  text-wrap: balance;
+  color: var(--text-primary);
+}
+
+.headline[data-state='none'] .headline__figure {
+  color: var(--text-secondary);
+}
+
+.headline[data-state='failed'] .headline__figure {
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--signal-failed);
+}
+
+.share {
+  height: 0.55rem;
+  border-radius: 2px;
+  background: var(--ink-raised);
+  box-shadow: inset 0 0 0 1px var(--ink-line);
+  overflow: hidden;
+}
+
+.share__fill {
+  height: 100%;
+  background-color: var(--curtailed);
+  background-image: var(--hatch);
+  box-shadow: inset -1px 0 0 var(--curtailed-edge);
+}
+
+/* An empty fill must leave no trace, or "none" still looks like a little. */
+.headline[data-state='none'] .share__fill,
+.headline[data-state='failed'] .share__fill {
+  box-shadow: none;
+}
+
+.share__note,
+.headline__settled {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: var(--wt-light);
+  color: var(--text-muted);
+}
+
+.headline__settled {
+  padding-top: 0.35rem;
+  margin-top: 0.2rem;
+  border-top: var(--rule) solid var(--ink-line);
+}
+
+.headline__farms {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.55rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+}
+
+.farms__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.farms__name {
+  font-weight: var(--wt-medium);
+  color: var(--text-secondary);
+}
+
+.farms__mw {
+  color: var(--curtailed-edge);
+}
+
+.farms__sep,
+.farms__rest {
+  color: var(--ink-line-strong);
+}
+
+.farms__rest {
+  color: var(--text-muted);
+}
+
+/* --- The constraint ----------------------------------------------------- */
+
+.constraint {
+  display: grid;
+  grid-template-columns: 1fr minmax(auto, 44ch) 1fr;
+  align-items: center;
+  gap: var(--gap-md);
+  padding-block: var(--gap-xs);
+}
+
+.constraint__rule {
+  height: 3px;
+  border-top: 1px solid var(--ink-line-strong);
+  border-bottom: 1px solid var(--ink-line-strong);
+}
+
+.constraint[data-state='constrained'] .constraint__rule {
+  border-color: var(--signal-stale);
+}
+
+/* Permeable when there is room: the line itself is broken. */
+.constraint[data-state='clear'] .constraint__rule {
+  border-color: transparent;
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--ink-line-strong) 0 7px,
+    transparent 7px 14px
+  );
+}
+
+.constraint__text {
+  display: grid;
+  gap: 0.3rem;
+  text-align: center;
+}
+
+.constraint__body {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: var(--wt-light);
+  line-height: 1.5;
+  text-wrap: balance;
+  color: var(--text-secondary);
+}
+
+/* --- Narration ---------------------------------------------------------- */
+
+.narration {
+  display: grid;
+  gap: 0.35rem;
+  padding-top: var(--gap-sm);
+  border-top: var(--rule) solid var(--ink-line);
+}
+
+.narration__body {
+  margin: 0;
+  max-width: 64ch;
+  padding-left: var(--gap-md);
+  border-left: 2px solid var(--curtailed);
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  font-weight: var(--wt-light);
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.narration__strap {
+  margin: 0;
+  padding-left: calc(var(--gap-md) + 2px);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Provenance is stated in the strap and marked here — never colour alone. */
+.narration[data-provenance='template'] .narration__strap::before {
+  content: '◇ ';
+  color: var(--text-muted);
+}
+
+.narration[data-provenance='generated'] .narration__strap::before {
+  content: '◆ ';
+  color: var(--fuel-wind);
+}
+
+.narration[data-provenance='generated'] .narration__body {
+  border-left-color: var(--fuel-wind);
+}
+
+.narration[data-provenance='none'] .narration__body {
+  border-left-color: var(--signal-failed);
+  color: var(--text-secondary);
+}
+
+/* --- Colophon ----------------------------------------------------------- */
+
+.colophon {
+  display: grid;
+  gap: var(--gap-xs);
+  padding-top: var(--gap-xs);
+  border-top: var(--rule) solid var(--ink-line);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.method__summary {
+  cursor: pointer;
+  font-weight: var(--wt-medium);
+  color: var(--text-secondary);
+}
+
+.method__summary:hover {
+  color: var(--text-primary);
+}
+
+.method p {
+  margin: var(--gap-xs) 0 0;
+  max-width: 74ch;
+  font-weight: var(--wt-light);
+  line-height: 1.55;
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-xs) var(--gap-lg);
+}
+
+.sources .colophon__byline {
+  margin-left: auto;
+}
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.source__mark {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 1px;
+  background: var(--signal-ok);
+}
+
+.source[data-health='partial'] .source__mark {
+  background: var(--signal-ageing);
+}
+
+.source[data-health='failed'] .source__mark,
+.source[data-health='unreachable'] .source__mark {
+  background: var(--signal-failed);
+}
+
+.source__id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.source__name {
+  font-weight: var(--wt-medium);
+  color: var(--text-secondary);
+}
+
+.source__status {
+  color: var(--text-muted);
+}
+
+.source[data-health='failed'] .source__status,
+.source[data-health='unreachable'] .source__status {
+  color: var(--signal-failed);
+}
+
+.colophon__byline {
+  margin: 0;
+  color: var(--ink-line-strong);
+}
+
+/* --- State toggle (scaffolding) ----------------------------------------- */
+
+.toggle {
+  position: fixed;
+  right: var(--gap-sm);
+  bottom: var(--gap-sm);
+  z-index: 10;
+  display: grid;
+  gap: 0.4rem;
+  max-width: 22rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--ink-line);
+  border-radius: 4px;
+  background: rgb(11 16 20 / 0.92);
+  backdrop-filter: blur(6px);
+  font-size: 0.7rem;
+}
+
+.toggle__label {
+  margin: 0;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.toggle__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.toggle__button {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--ink-line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggle__button:hover {
+  border-color: var(--ink-line-strong);
+  color: var(--text-primary);
+}
+
+.toggle__button[data-active='true'] {
+  border-color: var(--fuel-wind);
+  color: var(--fuel-wind);
+}
+
+.toggle__note {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* --- Narrow ------------------------------------------------------------- */
+
+/*
+ * Below a wide desktop the headline cannot hold a figure and its evidence on
+ * one line without either wrapping badly, so the two stack and the bar labels
+ * hand over to the legend entirely.
+ */
+@media (max-width: 64rem) {
+  .masthead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-xs);
+  }
+
+  .clock {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .headline {
+    grid-template-columns: 1fr;
+    gap: var(--gap-sm);
+  }
+
+  .headline__evidence {
+    padding-bottom: 0;
+  }
+
+  .headline__predicate {
+    max-width: 34ch;
+  }
+
+  .mix__label {
+    display: none;
+  }
+}
+
+@media (max-width: 46rem) {
+  .screen {
+    gap: var(--gap-md);
+    padding-top: var(--gap-md);
+  }
+
+  .masthead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .clock {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .constraint {
+    grid-template-columns: 1fr;
+    gap: var(--gap-xs);
+  }
+
+  .constraint__rule {
+    display: none;
+  }
+
+  .constraint__text {
+    text-align: left;
+    padding-block: var(--gap-xs);
+    border-top: 3px double var(--ink-line-strong);
+    border-bottom: 3px double var(--ink-line-strong);
+  }
+
+  .constraint[data-state='constrained'] .constraint__text {
+    border-color: var(--signal-stale);
+  }
+
+  .mix {
+    height: 2rem;
+  }
+
+  .toggle {
+    left: var(--gap-xs);
+    right: var(--gap-xs);
+    bottom: var(--gap-xs);
+    max-width: none;
+  }
+
+  .sources .colophon__byline {
+    margin-left: 0;
+  }
+}

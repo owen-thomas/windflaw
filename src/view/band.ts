@@ -11,7 +11,7 @@
  * phase 3 motion pass depends on that.
  */
 
-import { el, setAttr, setText, type View } from './dom';
+import { el, setAttr, setText, setTextCrossfade, type View } from './dom';
 import { FUEL_ORDER, orderMix } from '../lib/fuels';
 import { formatIntensity, formatPct, fuelLabel } from '../lib/format';
 import type { RegionState, RegionalState } from '../lib/types';
@@ -63,8 +63,13 @@ export function bandView(spec: BandSpec): View {
     bar.append(seg);
   }
 
-  // The accessible reading of the bar: the same numbers as text.
+  // The accessible reading of the bar: the same numbers as text. Rebuilt
+  // only when its content actually changes (see legendKey below) — the 15s
+  // render tick calls update() far more often than the mix does, and a
+  // fresh set of nodes every tick would both churn the DOM and refire any
+  // transition on the legend items for no reason.
   const legend = el('dl', { class: 'legend' });
+  let legendKey = '';
 
   const note = el('p', { class: 'band__caption' });
   const foot = el('div', { class: 'band__foot' }, legend, note);
@@ -93,24 +98,27 @@ export function bandView(spec: BandSpec): View {
       const region = state.grid?.regions ? spec.pick(state.grid.regions) : null;
       const now = state.curtailment?.now;
       if (!now) {
-        setText(note, spec.caption.unknown);
+        setTextCrossfade(note, spec.caption.unknown);
       } else {
         const tense = speaksOfNow(state.curtailment?.fetchedAt, now.settlement, state.now)
           ? 'now'
           : 'past';
-        setText(note, spec.caption[now.curtailedMW > 0 ? 'constrained' : 'clear'][tense]);
+        setTextCrossfade(note, spec.caption[now.curtailedMW > 0 ? 'constrained' : 'clear'][tense]);
       }
 
       if (!region && state.pending) {
         setAttr(root, 'data-state', 'pending');
         setText(place, spec.side === 'north' ? 'Scotland' : 'South England');
-        setText(leadFigure, 'Reading');
-        setText(intensity, 'Waiting for Carbon Intensity');
+        setTextCrossfade(leadFigure, 'Reading');
+        setTextCrossfade(intensity, 'Waiting for Carbon Intensity');
         for (const { seg, label } of segments.values()) {
           seg.style.flexBasis = '0%';
           setText(label, '');
         }
-        legend.replaceChildren();
+        if (legendKey !== '') {
+          legend.replaceChildren();
+          legendKey = '';
+        }
         setAttr(foot, 'data-empty', 'true');
         return;
       }
@@ -118,13 +126,16 @@ export function bandView(spec: BandSpec): View {
       if (!region) {
         setAttr(root, 'data-state', 'failed');
         setText(place, spec.side === 'north' ? 'Scotland' : 'South England');
-        setText(leadFigure, 'No reading');
-        setText(intensity, 'Carbon Intensity unavailable');
+        setTextCrossfade(leadFigure, 'No reading');
+        setTextCrossfade(intensity, 'Carbon Intensity unavailable');
         for (const { seg, label } of segments.values()) {
           seg.style.flexBasis = '0%';
           setText(label, '');
         }
-        legend.replaceChildren();
+        if (legendKey !== '') {
+          legend.replaceChildren();
+          legendKey = '';
+        }
         setAttr(foot, 'data-empty', 'true');
         return;
       }
@@ -133,8 +144,8 @@ export function bandView(spec: BandSpec): View {
       setAttr(root, 'data-state', 'ok');
       setText(place, region.name);
       const leadPct = spec.lead === 'wind' ? region.windPct : region.gasPct;
-      setText(leadFigure, `${formatPct(leadPct)} ${spec.lead}`);
-      setText(intensity, formatIntensity(region.intensity.forecast ?? region.intensity.actual));
+      setTextCrossfade(leadFigure, `${formatPct(leadPct)} ${spec.lead}`);
+      setTextCrossfade(intensity, formatIntensity(region.intensity.forecast ?? region.intensity.actual));
 
       const mix = orderMix(region.generationMix);
       for (const { fuel, perc } of mix) {
@@ -145,10 +156,11 @@ export function bandView(spec: BandSpec): View {
         setText(entry.label, perc >= LABEL_THRESHOLD_PCT ? `${fuelLabel(fuel)} ${formatPct(perc)}` : '');
       }
 
-      legend.replaceChildren(
-        ...mix
-          .filter((f) => f.perc > 0)
-          .map((f) =>
+      const shown = mix.filter((f) => f.perc > 0);
+      const key = shown.map((f) => `${f.fuel}:${f.perc}`).join('|');
+      if (key !== legendKey) {
+        legend.replaceChildren(
+          ...shown.map((f) =>
             el(
               'div',
               { class: 'legend__item' },
@@ -156,7 +168,9 @@ export function bandView(spec: BandSpec): View {
               el('dd', { text: formatPct(f.perc) })
             )
           )
-      );
+        );
+        legendKey = key;
+      }
     },
   };
 }

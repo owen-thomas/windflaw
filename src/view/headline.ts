@@ -12,7 +12,7 @@
  * (DECISIONS 003). "At least" is part of the claim, not a footnote.
  */
 
-import { clear, el, setAttr, setText, type View } from './dom';
+import { clear, el, setAttr, setText, setTextCrossfade, type View } from './dom';
 import { formatMW, formatMWh, formatPct, formatPeriodSpan, joinList } from '../lib/format';
 import type { CurtailedUnit, CurtailmentResponse } from '../lib/types';
 import { speaksOfNow, type AppState } from '../lib/state';
@@ -57,8 +57,8 @@ export function headlineView(): View {
       if (!data?.now && state.pending) {
         setAttr(root, 'data-state', 'pending');
         setText(eyebrow, 'Wind switched off');
-        setText(figure, 'Reading');
-        setText(
+        setTextCrossfade(figure, 'Reading');
+        setTextCrossfade(
           predicate,
           'Windfall is asking Elexon what is being held down this half-hour. Nothing is ' +
             'claimed until it answers.'
@@ -73,8 +73,8 @@ export function headlineView(): View {
       if (!data || !data.now) {
         setAttr(root, 'data-state', 'failed');
         setText(eyebrow, 'Wind switched off');
-        setText(figure, 'Unavailable');
-        setText(
+        setTextCrossfade(figure, 'Unavailable');
+        setTextCrossfade(
           predicate,
           state.curtailmentError
             ? 'Windfall could not reach its own reading of the balancing mechanism.'
@@ -92,8 +92,8 @@ export function headlineView(): View {
       if (curtailedMW <= 0) {
         setAttr(root, 'data-state', 'none');
         setText(eyebrow, 'Right now');
-        setText(figure, 'None');
-        setText(
+        setTextCrossfade(figure, 'None');
+        setTextCrossfade(
           predicate,
           present
             ? 'of Scotland’s tracked wind is being instructed off. The network is carrying what it makes.'
@@ -108,11 +108,11 @@ export function headlineView(): View {
 
       setAttr(root, 'data-state', 'curtailing');
       setText(eyebrow, 'At least');
-      setText(figure, formatMW(curtailedMW));
+      setTextCrossfade(figure, formatMW(curtailedMW));
       // "Right now" is a claim with an expiry date. Once the reading is a
       // settlement period old it stops being true, and the tense has to move
       // with it — a colour change would not undo the word.
-      setText(
+      setTextCrossfade(
         predicate,
         present
           ? 'of Scottish wind is being held off the grid, right now.'

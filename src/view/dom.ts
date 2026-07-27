@@ -7,6 +7,7 @@
  */
 
 import type { AppState } from '../lib/state';
+import { prefersReducedMotion } from '../lib/motion';
 
 type Attrs = Record<string, string | number | boolean | null | undefined>;
 type Child = Node | string | null | undefined | false;
@@ -43,6 +44,41 @@ export function append(parent: Element, children: Child[]): void {
 /** Set text only when it has changed, so unchanged nodes are left untouched. */
 export function setText(node: Element, text: string): void {
   if (node.textContent !== text) node.textContent = text;
+}
+
+/**
+ * Set text with a quiet crossfade when it changes: this is a claim being
+ * swapped for another claim, not a value counting toward it (see phase 3
+ * motion inventory in DECISIONS.md — no figure is ever tweened, because a
+ * crossfade says "this was replaced" and a tween would say "this changed
+ * continuously", which is never true of a 30-minute-settled reading).
+ *
+ * Opt in per call site, not a replacement for setText: text nodes the 15s
+ * render clock changes on its own (the masthead's "read N minutes ago")
+ * must never carry this — it would crossfade every tick and read as
+ * flicker rather than as a moment worth noticing.
+ */
+export function setTextCrossfade(node: HTMLElement, text: string): void {
+  if (node.textContent === text) return;
+  // Populating an empty node is not a claim being replaced — there was
+  // nothing on screen to contradict — so the very first placeholder ("Reading")
+  // still appears the instant it is asked for, exactly as before this pass.
+  // The interesting crossfade is the one after: placeholder to real reading,
+  // or one reading to the next.
+  if (prefersReducedMotion() || node.textContent === '') {
+    node.textContent = text;
+    return;
+  }
+  node.classList.add('is-swapping');
+  const swap = () => {
+    node.textContent = text;
+    node.classList.remove('is-swapping');
+  };
+  node.addEventListener('transitionend', swap, { once: true });
+  // A node with no active transition (display:none ancestor, first paint
+  // before the stylesheet has applied) never fires transitionend, and the
+  // text must not hang mid-fade forever.
+  setTimeout(swap, 260);
 }
 
 /** Set or remove an attribute in one call. */

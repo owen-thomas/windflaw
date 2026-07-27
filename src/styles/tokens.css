@@ -79,4 +79,34 @@
 
   --rule: 1px;
   --page-x: clamp(1.25rem, 4vw, 4rem);
+
+  /* --- Motion ------------------------------------------------------------
+   * Every duration named here, not scattered through app.css, so the phase 3
+   * pass is a set of decisions rather than magic numbers. Nothing on this
+   * page moves slower than --dur-slow: a 30-minute step tweened over
+   * seconds would be a picture of something that never happened — the
+   * transition may only ever be quicker than the event it reports.
+   */
+  --dur-quick: 180ms; /* a claim being swapped for another claim */
+  --dur-base: 420ms; /* a segment or fill changing size */
+  --dur-slow: 900ms; /* the arrival/landing stagger, full chain */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --stagger-step: 90ms;
+}
+
+/*
+ * Reduced motion removes duration, never information: every state a
+ * transition reaches is still reached, immediately, with no distance
+ * travelled. Anything driven by requestAnimationFrame or setInterval rather
+ * than a CSS transition (the flow marks) checks this media query itself in
+ * lib/motion.ts, because collapsing a duration token cannot stop a JS loop.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-quick: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+    --stagger-step: 0ms;
+  }
 }

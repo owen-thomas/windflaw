@@ -6,11 +6,17 @@
  * what is switched off, why it cannot travel, what runs instead — so the
  * boundary has to be a real horizontal edge, not a heading.
  *
- * It is also where the phase 3 motion lands: flow marks running south and
- * stopping dead at this line.
+ * It is also where the phase 3 motion lands: flow marks running along both
+ * rule segments, converging on the text and stopping dead at its edge —
+ * clipped by the rule's own box, not faded, so the metaphor is exact: this
+ * is where the power stops, not where it fades out. Density (dash pitch)
+ * scales with how much of tracked capacity is held down this half-hour, so
+ * a heavier constraint reads as a busier line, not just a differently
+ * coloured one. Only animates in the constrained state; a clear network has
+ * nothing flowing to arrest.
  */
 
-import { el, setAttr, setText, type View } from './dom';
+import { el, setAttr, setTextCrossfade, type View } from './dom';
 import { speaksOfNow, type AppState } from '../lib/state';
 
 /*
@@ -67,7 +73,7 @@ export function constraintView(): View {
       const now = state.curtailment?.now;
       if (!now) {
         setAttr(root, 'data-state', 'unknown');
-        setText(body, UNKNOWN);
+        setTextCrossfade(body, UNKNOWN);
         return;
       }
       const constrained = now.curtailedMW > 0;
@@ -75,7 +81,14 @@ export function constraintView(): View {
         ? 'now'
         : 'past';
       setAttr(root, 'data-state', constrained ? 'constrained' : 'clear');
-      setText(body, constrained ? CONSTRAINED[tense] : CLEAR[tense]);
+      setTextCrossfade(body, constrained ? CONSTRAINED[tense] : CLEAR[tense]);
+
+      // 1 (sparse) to 3 (dense) across the observed range of shares — a
+      // capped linear scale, not a claim of precision the dash pitch
+      // couldn't support anyway.
+      const capacityMW = state.curtailment?.method.capacityMW ?? 0;
+      const share = constrained && capacityMW > 0 ? now.curtailedMW / capacityMW : 0;
+      root.style.setProperty('--flow-density', String(1 + Math.min(2, share * 4)));
     },
   };
 }

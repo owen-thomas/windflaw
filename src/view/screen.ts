@@ -31,6 +31,16 @@ export function screenView(): View {
 
   const views = [masthead, north, headline, constraint, south, narration, colophon];
 
+  // The paradox chain, in reading order, each carrying its position as a CSS
+  // custom property. app.css reads --i to stagger every crossfade and width
+  // transition within that section by --stagger-step, so a landing (arrival
+  // or refresh) reads down the page the same way the layout does — one
+  // mechanism serving both moments, rather than a separate reveal animation
+  // bolted on top of the ordinary data-swap transitions.
+  [north.el, headline.el, constraint.el, south.el, narration.el].forEach((el, i) => {
+    el.style.setProperty('--i', String(i));
+  });
+
   const root = el(
     'div',
     { class: 'screen' },

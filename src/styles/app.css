@@ -62,6 +62,44 @@ body {
   color: var(--text-muted);
 }
 
+/* --- Landing: stagger and crossfade -------------------------------------
+ *
+ * screen.ts sets --i (0–4) on each section of the paradox chain — north,
+ * headline, constraint, south, narration, in that reading order. Every
+ * transition below reads --i from its own ancestor section, so one landing
+ * (arrival or a later refresh that actually changed something) reads down
+ * the page in the same order the layout does, with no JS sequencer: the
+ * delay is data, not a timeline someone has to keep in sync with the DOM.
+ *
+ * setTextCrossfade (dom.ts) only ever toggles the .is-swapping class; the
+ * transition itself, and its stagger, live entirely here so every claim on
+ * the page moves the same way.
+ */
+.headline__figure,
+.headline__predicate,
+.band__lead,
+.band__intensity,
+.band__caption,
+.constraint__body,
+.narration__body,
+.narration__strap {
+  transition: opacity var(--dur-quick) var(--ease-in-out) calc(var(--i, 0) * var(--stagger-step));
+}
+
+.is-swapping {
+  opacity: 0;
+}
+
+/* A segment or a fill changing size is itself the ramping/curtailment-
+ * engaging moment; no separate reveal is layered on top of it. */
+.mix__seg {
+  transition: flex-basis var(--dur-base) var(--ease-out) calc(var(--i, 0) * var(--stagger-step));
+}
+
+.share__fill {
+  transition: width var(--dur-base) var(--ease-out) calc(var(--i, 0) * var(--stagger-step));
+}
+
 /* --- Masthead ----------------------------------------------------------- */
 
 .masthead {
@@ -534,6 +572,32 @@ body {
 
 .constraint[data-state='constrained'] .constraint__rule {
   border-color: var(--signal-stale);
+  /* Marks run the length of the rule and are clipped at its own edge —
+   * against the text block in the centre — which is what "stopping dead"
+   * means here: the box ends, not the opacity. Density is set per-render in
+   * constraint.ts from the curtailed share; 1 is the unconstrained default. */
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--curtailed-edge) 0 3px,
+    transparent 3px calc(14px / var(--flow-density, 1))
+  );
+  background-size: calc(14px / var(--flow-density, 1)) 100%;
+  animation: flow-marks 1.6s linear infinite;
+}
+
+@keyframes flow-marks {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: calc(-1 * (14px / var(--flow-density, 1))) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constraint__rule {
+    animation: none;
+  }
 }
 
 /* Permeable when there is room: the line itself is broken. */

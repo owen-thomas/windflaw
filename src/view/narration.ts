@@ -20,7 +20,7 @@
  * has just been confirmed current.
  */
 
-import { el, setAttr, setText, type View } from './dom';
+import { el, setAttr, setTextCrossfade, type View } from './dom';
 import { narrate } from '../lib/narrate';
 import { speaksOfNow, settlementOf, type AppState } from '../lib/state';
 import type { SettlementRef } from '../lib/settlement';
@@ -64,8 +64,8 @@ export function narrationView(): View {
 
       if (generated) {
         setAttr(root, 'data-provenance', 'generated');
-        setText(body, generated.text);
-        setText(strap, `Written by Claude for settlement period ${period ?? '—'}.`);
+        setTextCrossfade(body, generated.text);
+        setTextCrossfade(strap, `Written by Claude for settlement period ${period ?? '—'}.`);
         return;
       }
 
@@ -73,21 +73,21 @@ export function narrationView(): View {
 
       if (!fallback && state.pending) {
         setAttr(root, 'data-provenance', 'none');
-        setText(body, 'Waiting for this half-hour’s readings.');
-        setText(strap, 'Nothing is described until the sources have answered.');
+        setTextCrossfade(body, 'Waiting for this half-hour’s readings.');
+        setTextCrossfade(strap, 'Nothing is described until the sources have answered.');
         return;
       }
 
       if (!fallback) {
         setAttr(root, 'data-provenance', 'none');
-        setText(body, 'Nothing to describe: no reading arrived this half-hour.');
-        setText(strap, 'Windfall is not reaching its data sources.');
+        setTextCrossfade(body, 'Nothing to describe: no reading arrived this half-hour.');
+        setTextCrossfade(strap, 'Windfall is not reaching its data sources.');
         return;
       }
 
       setAttr(root, 'data-provenance', fallback.provenance);
-      setText(body, fallback.text);
-      setText(
+      setTextCrossfade(body, fallback.text);
+      setTextCrossfade(
         strap,
         `Assembled from the figures above for settlement period ${period ?? '—'}. Not yet written by a model.`
       );

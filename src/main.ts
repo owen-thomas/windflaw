@@ -15,7 +15,7 @@ import '@fontsource-variable/dm-sans';
 import './styles/tokens.css';
 import './styles/app.css';
 
-import { fetchFeeds } from './lib/client';
+import { fetchCoreFeeds, fetchNarration } from './lib/client';
 import { scenarioByName, SCENARIOS } from './lib/scenarios';
 import { emptyFeeds, type AppState } from './lib/state';
 import { screenView } from './view/screen';
@@ -42,21 +42,41 @@ const state: AppState = {
 const screen = screenView();
 app.replaceChildren(screen.el);
 
-if (showToggle) {
-  app.append(
-    toggleView(scenarioName, (name) => {
-      const next = new URLSearchParams(location.search);
-      if (name === 'live') next.delete('state');
-      else next.set('state', name);
-      next.set('dev', '1');
-      location.search = next.toString();
-    })
-  );
-}
+const toggle = showToggle ? toggleView(scenarioName, selectScenario) : null;
+if (toggle) app.append(toggle.el);
 
 function render() {
   state.now = new Date();
   screen.update(state);
+}
+
+/**
+ * Switches the scenario in place. This used to be `location.search = …`,
+ * which reloaded the page — meaning no transition between states was ever
+ * observable, including the ones the toggle exists to demonstrate
+ * (rollover, curtailment engaging, the narration swap). Feeds are cleared
+ * to empty-and-pending first so a switch reads as a fresh, honest arrival —
+ * the same choreography a first-time visitor sees — rather than the
+ * previous scenario's numbers sitting under the new scenario's chrome for a
+ * frame.
+ *
+ * The URL still updates (`history.replaceState`, not a navigation), so a
+ * link to `?state=curtailing` keeps working and a reload lands on the same
+ * state.
+ */
+function selectScenario(name: string) {
+  const next = new URLSearchParams(location.search);
+  if (name === 'live') next.delete('state');
+  else next.set('state', name);
+  next.set('dev', '1');
+  history.replaceState(null, '', `${location.pathname}?${next.toString()}`);
+
+  Object.assign(state, emptyFeeds());
+  state.scenario = name;
+  state.pending = true;
+  toggle?.setActive(name);
+  render();
+  void refresh();
 }
 
 async function refresh() {
@@ -69,26 +89,39 @@ async function refresh() {
     return;
   }
 
-  try {
-    const feeds = await fetchFeeds();
+  // Core and narration resolve independently. Narration is, on a cache
+  // miss, a live model call that can take several seconds (DECISIONS 018);
+  // awaiting it alongside grid and curtailment would mean the first visitor
+  // of every settlement period — the one whose request causes the
+  // generation — waits longest for a screen that has nothing to do with the
+  // model. The narration landing after the rest of the screen is not
+  // deferred work here; it is the template-to-generated swap the narration
+  // view already exists to show.
+  const core = fetchCoreFeeds().then((feeds) => {
     // Keep the last good payload when a feed fails; only the error is new.
     if (feeds.grid) state.grid = feeds.grid;
     state.gridError = feeds.gridError;
     if (feeds.curtailment) state.curtailment = feeds.curtailment;
     state.curtailmentError = feeds.curtailmentError;
-    if (feeds.narration) state.narration = feeds.narration;
-    state.narrationError = feeds.narrationError;
-  } finally {
     // The first attempt has now happened, whatever it returned. Everything
     // after this point may honestly be described as tried.
     state.pending = false;
     render();
-  }
+  });
+
+  const narration = fetchNarration().then((feed) => {
+    if (feed.narration) state.narration = feed.narration;
+    state.narrationError = feed.narrationError;
+    render();
+  });
+
+  await Promise.all([core, narration]);
 }
 
 render();
-// `boot` marks the first resolved fetch, not the first paint: capture work
-// and any future gating want the answered page, not the asking one.
+// `boot` marks the first resolved attempt at every feed, not the first
+// paint: capture work and any future gating want the answered page, not the
+// asking one.
 void refresh().then(() => {
   app.dataset.boot = 'ready';
 });
@@ -103,10 +136,6 @@ if (import.meta.env.DEV) {
     const index = SCENARIOS.findIndex((s) => s.name === state.scenario);
     const step = event.key === ']' ? 1 : -1;
     const next = SCENARIOS[(index + step + SCENARIOS.length) % SCENARIOS.length];
-    const search = new URLSearchParams(location.search);
-    if (next.name === 'live') search.delete('state');
-    else search.set('state', next.name);
-    search.set('dev', '1');
-    location.search = search.toString();
+    selectScenario(next.name);
   });
 }

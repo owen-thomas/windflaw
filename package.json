@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "probe": "npx tsx scripts/probe-api.ts",
     "spike:carbon": "npx tsx spike/carbon-intensity.ts",
-    "spike:elexon": "npx tsx spike/elexon-curtailment.ts"
+    "spike:elexon": "npx tsx spike/elexon-curtailment.ts",
+    "narrate:eval": "npx tsx scripts/narrate-eval.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

@@ -423,3 +423,35 @@ Each element asks about *its own* payload rather than the page's worst feed, for
 - **Dead exports** `msUntilRollover` (now load-bearing) and `FOSSIL_FUELS` (deleted).
 
 ---
+
+## 018 — Narration is cached by settlement period, not by TTL
+
+**Date:** 2026-07-27
+**Phase:** Phase 2
+**Decision:** `/api/narration` is keyed on `?date=&period=`, not on a flat CDN TTL like grid.ts and curtailment.ts. The TTL it sets is however long the requested period has left to run (`msUntilRollover`, floored at 30s), so one successful generation serves every visitor for the rest of that period, and the next period gets a fresh generation rather than a stale one.
+
+**Reasoning:** 005's flat-TTL caching works for grid and curtailment because a cache miss just re-fetches the same upstream facts — the CDN is a performance optimisation, not a correctness requirement. For narration a cache miss would produce a *different sentence describing identical data*, which breaks "one generation serves all visitors" (the project plan's cost control) and would make phase 3's regeneration-on-rollover motion moment fire on CDN misses instead. Making the settlement period the cache key makes the cache unit and the content unit the same thing.
+
+The client always requests the period its own `settlementAt()` names; the query param is a cache key and an abuse bound, not a way to request history. The server validates it against its own clock (current or immediately previous period only) and 400s anything else — bounding the key space against a client asking for `period=99999` and forcing unbounded distinct cache entries. It does not otherwise change what gets generated: the function always describes its own current period regardless of what was asked for, and a genuine clock-skew mismatch is caught downstream by 019's period-matching check rather than by this validation.
+
+**Where the data comes from:** the function calls `api/grid.ts` and `api/curtailment.ts`'s handlers in-process (the same shim pattern `vite.config.ts`'s dev server already uses), not over HTTP. This is the exact code path a visitor's own request runs, with no URL or CORS bookkeeping — but it does mean the function makes its own fresh Carbon Intensity and Elexon calls rather than reading the CDN copy, at most once per settlement period. **This is a known, accepted drift, not a solved one:** the narration is generated once near the top of a period and can sit on screen for most of it, while the headline MW keeps refreshing every five minutes as acceptances land. A narration citing an exact MW figure would start contradicting the number two rows above it within twenty minutes. The fix is in the prompt, not the architecture: narration figures are rounded far coarser than the screen's own (MW to the nearest 100, percentages to the nearest 5 — see `_lib/narration-prompt.ts`), which absorbs the drift rather than pretending it does not exist.
+
+**Fixtures never call this function.** `scenarios.ts` builds every state synchronously with no network access, so `Feeds.narration` is `null` for all five toggle states by construction — the narration view falls back to its template, which is correct (paying a model to describe a grid that is not real would be worse than not doing it, not better). No special-casing was needed; this fell out of the existing scenario architecture once `feeds()` was changed to spread `emptyFeeds()`.
+
+**Rejected:** serving a template narration from the server function itself when generation fails. Keeping the fallback client-side means a transient Anthropic failure self-heals on the next request instead of pinning a template sentence at the CDN edge for up to thirty minutes, and it means the narration slot survives even if this function is entirely unreachable — a guarantee the function cannot make about itself. See 019.
+
+---
+
+## 019 — The model never has to get tense right
+
+**Date:** 2026-07-27
+**Phase:** Phase 2
+**Decision:** Generated narration is only ever shown when the reading it describes is current enough to speak in the present — the same `speaksOfNow`-derived `present` check the deterministic sentence already used (017) — and when its named settlement period matches the one the rest of the screen is showing. Any mismatch falls through to the local template, which already handles the past tense correctly. The narration function itself never receives or reasons about tense; it only ever describes the period it was generated against, in the present.
+
+**Reasoning:** The alternative — generating past-tense sentences for the stale and degraded states too — turns out to be mostly illusory rather than merely harder. A client whose reading has gone stale or whose settlement period has rolled over is, in the overwhelming case, in exactly the situation where a *fresh* narration fetch would also be unreachable or would describe a different period than what is on screen (the same network or platform condition explains both). So "the model speaks in the past" would mostly mean serving a cached *present*-tense generation into a screen that has moved into the past — worse than the template, not better. Pushing the entire tense question onto client-side matching against a structural fact (does the fetched narration's named period equal the period on screen?) is both simpler and more correct than asking a model to reliably hedge its own currency.
+
+**Consequence, and a phase 3 hook:** because of this, a client holding a valid generated sentence for period *N* will swap to the deterministic past-tense template the instant period *N* closes, until period *N+1*'s narration arrives (which, per 018, can take a moment — it is generated fresh, not pre-warmed). That swap is a real transition and belongs in the phase 3 motion inventory alongside rollover and the other narration-regenerates moment; it is not built here.
+
+**Also decided here — the guardrail that lets a 30-minute-cached, unreviewed sentence ship at all:** the model is handed only pre-rounded, pre-labelled facts (`factsOf` in `_lib/narration-prompt.ts`) and told to use no other figure. `validate()` extracts every digit run from the output and rejects the generation unless each one traces back to a digit in the facts it was given — plus a word-count band (40–70), a ban on "!", and an outright ban on "you"/"your" and a short advice-verb list, rather than trying to pattern-match imperatives. A failed validation retries once, then the function reports `health: 'failed'` per 018 rather than caching anything. Tested against a deliberately hallucinated figure, a too-short sentence, second-person address and an exclamation mark — all four correctly rejected; the one legitimate sentence correctly passed. `npm run narrate:eval` runs this bench against the curtailing, calm and degraded fixtures (the three with anything to narrate — `waiting` and `offline` carry no data) and is the phase 2 prompt-iteration log: without a key it prints facts and prompts for editing; with one, it prints the generated text and the validator's verdict.
+
+---

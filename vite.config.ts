@@ -16,6 +16,18 @@ function devApi(): Plugin {
   return {
     name: 'windfall-dev-api',
     configureServer(server) {
+      // Vercel injects env vars into `process.env` in deployment; locally
+      // there is no equivalent, and Vite's own .env handling only exposes
+      // `import.meta.env.VITE_*` to client bundles, the opposite of what a
+      // server-only key needs. `loadEnvFile` is a plain Node 22+ builtin, so
+      // this needs no dependency — a missing file (no local key set) is a
+      // silent no-op, and api/narration.ts already treats a missing key as
+      // an ordinary generation failure.
+      try {
+        process.loadEnvFile();
+      } catch {
+        // No .env present — fine, narration falls back to its template.
+      }
       server.middlewares.use((req, res, next) => {
         if (!req.url?.startsWith('/api/')) return next();
 

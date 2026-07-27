@@ -76,6 +76,8 @@ async function refresh() {
     state.gridError = feeds.gridError;
     if (feeds.curtailment) state.curtailment = feeds.curtailment;
     state.curtailmentError = feeds.curtailmentError;
+    if (feeds.narration) state.narration = feeds.narration;
+    state.narrationError = feeds.narrationError;
   } finally {
     // The first attempt has now happened, whatever it returned. Everything
     // after this point may honestly be described as tried.

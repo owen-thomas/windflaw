@@ -12,6 +12,7 @@
  */
 
 import { formatMW, formatPct } from './format';
+import { situationOf } from './situation';
 import type { CurtailmentResponse, GridResponse } from './types';
 
 export interface Narration {
@@ -47,16 +48,15 @@ export function narrate(
   curtailment: CurtailmentResponse | null,
   present = true
 ): Narration | null {
-  const north = grid?.regions?.scotland ?? grid?.regions?.northScotland ?? null;
-  const south = grid?.regions?.southEngland ?? grid?.regions?.southEastEngland ?? null;
-  if (!north && !south && !curtailment?.now) return null;
+  const situation = situationOf(grid, curtailment);
+  if (!situation.north && !situation.south && situation.constraint === 'unknown') return null;
 
   const parts: string[] = [];
 
-  if (north) {
-    const intensity = grams(north.intensity.forecast ?? north.intensity.actual);
+  if (situation.north) {
+    const intensity = grams(situation.north.intensity);
     parts.push(
-      `Scotland ${present ? 'is' : 'was'} running at around ${formatPct(north.windPct)} wind ` +
+      `Scotland ${present ? 'is' : 'was'} running at around ${formatPct(situation.north.windPct)} wind ` +
         `${present ? 'this half-hour' : 'when this was last read'}` +
         (intensity
           ? `, at ${intensity} of carbon dioxide per kilowatt-hour.`
@@ -64,22 +64,21 @@ export function narrate(
     );
   }
 
-  if (south) {
-    const intensity = grams(south.intensity.forecast ?? south.intensity.actual);
+  if (situation.south) {
+    const intensity = grams(situation.south.intensity);
     parts.push(
-      `South England ${present ? 'is' : 'was'} at ${formatPct(south.gasPct)} gas` +
+      `South England ${present ? 'is' : 'was'} at ${formatPct(situation.south.gasPct)} gas` +
         (intensity ? ` and ${intensity}.` : ', with no intensity reading.')
     );
   }
 
-  const now = curtailment?.now;
-  if (now && now.curtailedMW > 0) {
+  if (situation.constraint === 'constrained' && situation.curtailedMW !== null) {
     parts.push(
-      `At least ${formatMW(now.curtailedMW)} of Scottish wind ` +
+      `At least ${formatMW(situation.curtailedMW)} of Scottish wind ` +
         `${present ? 'is' : 'was'} instructed to stop, because the network south ` +
         `${present ? 'cannot' : 'could not'} carry it.`
     );
-  } else if (now) {
+  } else if (situation.constraint === 'clear') {
     parts.push(
       present
         ? 'No tracked Scottish wind is currently instructed to stop; the network is carrying ' +

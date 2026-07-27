@@ -131,3 +131,24 @@ export interface CurtailmentResponse {
     capacityMW: number;
   };
 }
+
+/**
+ * One generated sentence per settlement period, or none.
+ *
+ * `health` is 'ok' only when `narration` is populated with text that passed
+ * validation; every other case — no API key, a failed generation, nothing to
+ * describe — is 'failed' with `narration: null`. The client's own template
+ * (narrate.ts) is the fallback in every 'failed' case; this function never
+ * ships a template sentence itself, so a transient failure here is
+ * self-healing on the next request rather than pinned at the CDN for the
+ * rest of the period.
+ */
+export interface NarrationResponse {
+  fetchedAt: string;
+  /** The period this text describes, named so the client can refuse to show
+   *  it against a screen that has since moved on to a different period. */
+  settlement: SettlementRef;
+  health: SourceHealth;
+  errors: string[];
+  narration: { text: string; provenance: 'generated' } | null;
+}

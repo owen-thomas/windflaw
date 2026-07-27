@@ -8,8 +8,9 @@
  * not an upstream.
  */
 
-import type { CurtailmentResponse, GridResponse } from './types';
+import type { CurtailmentResponse, GridResponse, NarrationResponse } from './types';
 import { emptyFeeds, type Feeds } from './state';
+import { settlementAt } from './settlement';
 
 const TIMEOUT_MS = 10_000;
 
@@ -33,9 +34,15 @@ function reason(err: unknown): string {
 }
 
 export async function fetchFeeds(): Promise<Feeds> {
-  const [grid, curtailment] = await Promise.allSettled([
+  // Ask for narration by the period our own clock says is current. The
+  // server treats this only as a cache key and a sanity bound (it always
+  // generates against its own clock) — see api/narration.ts.
+  const { date, period } = settlementAt();
+
+  const [grid, curtailment, narration] = await Promise.allSettled([
     getJson<GridResponse>('/api/grid'),
     getJson<CurtailmentResponse>('/api/curtailment'),
+    getJson<NarrationResponse>(`/api/narration?date=${date}&period=${period}`),
   ]);
 
   const feeds = emptyFeeds();
@@ -44,6 +51,9 @@ export async function fetchFeeds(): Promise<Feeds> {
 
   if (curtailment.status === 'fulfilled') feeds.curtailment = curtailment.value;
   else feeds.curtailmentError = reason(curtailment.reason);
+
+  if (narration.status === 'fulfilled') feeds.narration = narration.value;
+  else feeds.narrationError = reason(narration.reason);
 
   return feeds;
 }

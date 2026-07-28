@@ -1,9 +1,9 @@
 /**
  * Where does a day's curtailment actually sit?
  *
- * For the 23 July outlier (DECISIONS 013): Windfall reads 9.26 GWh against
+ * For the 23 July outlier (DECISIONS 013): Windflaw reads 9.26 GWh against
  * the Wind Curtailment Monitor's 7.20, and the excess of ~2 GWh has to be
- * something Windfall counts and the monitor does not. Localising it comes
+ * something Windflaw counts and the monitor does not. Localising it comes
  * before explaining it — a single farm, a single window of the day, and a
  * uniform spread each imply a different cause.
  *

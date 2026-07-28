@@ -1,17 +1,17 @@
 /**
  * Stream C — cross-check against another balancing-mechanism source.
  *
- * DECISIONS 002 left a gap unexplained: Windfall derives 23.75 GWh for
+ * DECISIONS 002 left a gap unexplained: Windflaw derives 23.75 GWh for
  * 20 June 2026 where a public tracker reports 56.45 GWh, a ratio of 0.42x.
  * The working hypothesis was that the tracker uses an availability-based
- * method (modelled available wind against metered output) while Windfall
+ * method (modelled available wind against metered output) while Windflaw
  * measures instructed turn-downs through the balancing mechanism — two
  * different questions, so two different answers.
  *
  * A hypothesis about a method family needs a second member of the family to
  * test it. The Wind Curtailment Monitor (Dudfield and de Berker,
  * wind.axle.energy) publishes a daily figure derived from FPN and BOAL — the
- * same two datasets Windfall uses, per its published methodology. If Windfall
+ * same two datasets Windflaw uses, per its published methodology. If Windflaw
  * lands close to it across a range of days, the gap to the tracker is a
  * difference between method families rather than an error in ours.
  *
@@ -20,7 +20,7 @@
  * any agreement here can be claimed.
  *
  * Deliberately not automated against their API: this is a one-off validation
- * feeding the method note, not a runtime dependency. Windfall must never need
+ * feeding the method note, not a runtime dependency. Windflaw must never need
  * another project to be up in order to render.
  */
 
@@ -48,7 +48,7 @@ const REFERENCES: Reference[] = [
   { date: '2026-07-22', monitorGWh: 0.6, note: 'recent, near-calm' },
   // The monitor's series for this day has 46 half-hourly points, not 48:
   // 19:00 and 19:30 are absent, and its daily total is the sum of that
-  // incomplete series. Those two periods are Windfall's peak, worth
+  // incomplete series. Those two periods are Windflaw's peak, worth
   // 1,696.5 MWh, which is 84% of the disagreement. Comparing the published
   // totals therefore overstates the gap; see DECISIONS 014.
   { date: '2026-07-23', monitorGWh: 7.2, note: 'comparator missing 19:00 and 19:30' },
@@ -84,8 +84,8 @@ async function deriveDay(date: string): Promise<{ gwh: number; periods: number }
 }
 
 async function main() {
-  console.log('Cross-check: Windfall derivation vs Wind Curtailment Monitor\n');
-  console.log('date          windfall    monitor     ratio   periods  note');
+  console.log('Cross-check: Windflaw derivation vs Wind Curtailment Monitor\n');
+  console.log('date          windflaw    monitor     ratio   periods  note');
   console.log('-'.repeat(74));
 
   const ratios: number[] = [];
@@ -106,7 +106,7 @@ async function main() {
   console.log('-'.repeat(74));
   console.log(`mean ratio ${mean.toFixed(3)}x, spread ${spread.toFixed(3)}`);
   // The same contrast the monitor faces, so the gap is shown to be a property
-  // of the method family rather than of Windfall.
+  // of the method family rather than of Windflaw.
   const monitorVsTracker = REFERENCES[1].monitorGWh / TRACKER_GWH_20_JUNE;
   console.log(
     `\n20 June against the availability-based tracker (${TRACKER_GWH_20_JUNE} GWh): ` +

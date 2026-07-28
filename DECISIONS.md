@@ -1,4 +1,4 @@
-# Windfall — Decision Log
+# Windflaw — Decision Log
 
 Significant design and technical decisions, recorded as made. The case study needs the reasoning, not just the result.
 
@@ -62,9 +62,9 @@ A *plausible* explanation is that the tracker uses an availability-based method 
 
 But this is conjecture. The gap could also reflect differences in unit coverage, time-boundary handling, or a method we haven't considered.
 
-**Phase 1 follow-up:** cross-check our derivation against de Berker's Wind Curtailment Monitor, which is also balancing-mechanism-derived. If Windfall lands close to another BM-method source, the gap to the tracker becomes a family difference between BM-derived and availability-based methods — explicable rather than unexplained. One script run against a shared date.
+**Phase 1 follow-up:** cross-check our derivation against de Berker's Wind Curtailment Monitor, which is also balancing-mechanism-derived. If Windflaw lands close to another BM-method source, the gap to the tracker becomes a family difference between BM-derived and availability-based methods — explicable rather than unexplained. One script run against a shared date.
 
-**Resolved in 013.** Windfall and the monitor agree to within 1% on three days of six (a fourth inside the monitor's rounding), and both sit at ~0.42x of the tracker. The family difference is confirmed.
+**Resolved in 013.** Windflaw and the monitor agree to within 1% on three days of six (a fourth inside the monitor's rounding), and both sit at ~0.42x of the tracker. The family difference is confirmed.
 
 **API quirks discovered:**
 - PN endpoint uses `settlementDate` + `settlementPeriod` params; PN/stream uses `from`/`to` dates (exclusive end)
@@ -104,15 +104,15 @@ But this is conjecture. The gap could also reflect differences in unit coverage,
 
 **Date:** 2026-07-24  
 **Phase:** Phase 0 / Phase 1  
-**Decision:** Own the lower bound explicitly. Windfall's curtailment figure is BM-derived instructed curtailment — a floor, not a ceiling. This is a design position, not a data limitation to apologise for.
+**Decision:** Own the lower bound explicitly. Windflaw's curtailment figure is BM-derived instructed curtailment — a floor, not a ceiling. This is a design position, not a data limitation to apologise for.
 
-**The problem:** Octopus's ticker, news coverage, and public commentary cite larger figures derived from availability-based methods or broader definitions of constraint cost. A visitor who has read "£650m wasted" will see Windfall's smaller number and wonder which is wrong. If the product doesn't address this head-on, it reads as an error.
+**The problem:** Octopus's ticker, news coverage, and public commentary cite larger figures derived from availability-based methods or broader definitions of constraint cost. A visitor who has read "£650m wasted" will see Windflaw's smaller number and wonder which is wrong. If the product doesn't address this head-on, it reads as an error.
 
 **The design response (three layers):**
 
 1. **"At least" framing on the headline figure.** The number is introduced as a floor: "at least X MWh switched off this period" or equivalent. The language makes the lower-bound status part of the claim, not a footnote.
 
-2. **Method note.** Windfall carries a short public explanation of how the number is derived and what it does and does not include. This is honesty-as-design: the method note is part of the product's position, not small print. It should say what the derivation measures (instructed turn-downs via the balancing mechanism), what it excludes (self-curtailment, pre-adjusted declarations), and why the figure will be lower than availability-based estimates.
+2. **Method note.** Windflaw carries a short public explanation of how the number is derived and what it does and does not include. This is honesty-as-design: the method note is part of the product's position, not small print. It should say what the derivation measures (instructed turn-downs via the balancing mechanism), what it excludes (self-curtailment, pre-adjusted declarations), and why the figure will be lower than availability-based estimates.
 
 3. **Narration prompt inherits the hedging.** The AI narration must never present the curtailment figure as the total picture. Prompt guardrails: use "at least", "instructed to switch off", never "total curtailment" or unqualified "wasted". The narration describes the floor, not an estimate of the ceiling.
 
@@ -120,7 +120,7 @@ But this is conjecture. The gap could also reflect differences in unit coverage,
 
 **What was rejected:** Switching to an availability-based method (would require wind speed data or metered output joins, adding complexity and an opaque model); showing no number until the gap is fully explained (delays the product for an investigation that doesn't change the design); showing the number without framing (invites the "which is wrong?" question).
 
-**Phase 1 follow-up (from 002):** Cross-check against de Berker's Wind Curtailment Monitor (also BM-derived) to validate like-for-like. If confirmed, the gap to press figures becomes a family difference between methods, not a Windfall-specific discrepancy.
+**Phase 1 follow-up (from 002):** Cross-check against de Berker's Wind Curtailment Monitor (also BM-derived) to validate like-for-like. If confirmed, the gap to press figures becomes a family difference between methods, not a Windflaw-specific discrepancy.
 
 **Resolved in 013 — confirmed.** The three-layer response above stands, and layer 2's method note is rewritten to cite the cross-check instead of speculating about how other figures are derived.
 
@@ -250,7 +250,7 @@ The same reasoning forced the tense. A 47-minute-old reading under the words "ri
 **Phase:** Phase 1 (stream B)
 **Decision:** Three deliberately provisional calls, made to get V1 standing rather than to settle the identity.
 
-**Type:** DM Sans, self-hosted as a variable font, routed through a single `--font-sans` token. Weight carries hierarchy — light for the large figures, medium for the small ones — which leaves colour free to mean fuel and only fuel. Swapping the family is one declaration. Owen's established Fraunces/IBM Plex palette was not inherited, per the plan's note that Windfall may warrant its own identity.
+**Type:** DM Sans, self-hosted as a variable font, routed through a single `--font-sans` token. Weight carries hierarchy — light for the large figures, medium for the small ones — which leaves colour free to mean fuel and only fuel. Swapping the family is one declaration. Owen's established Fraunces/IBM Plex palette was not inherited, per the plan's note that Windflaw may warrant its own identity.
 
 **Ground:** dark only. The reference (earth.nullschool) is a lit field on a dark ground, and the fuel palette is built to glow against it. A light variant would be a second design rather than a setting, and slice one does not have room for two.
 
@@ -280,13 +280,13 @@ One fixture is deliberately not a straight copy: the calm-day mix moves Scotland
 
 **Date:** 2026-07-24
 **Phase:** Phase 1 (stream C — cross-check)
-**Decision:** Closes the follow-up left open in 002 and 003. Windfall's derivation is validated against a second balancing-mechanism source and agrees with it. The 0.42x ratio to the public tracker is a difference between method families, not a Windfall error, and the method note now says so on evidence rather than on conjecture.
+**Decision:** Closes the follow-up left open in 002 and 003. Windflaw's derivation is validated against a second balancing-mechanism source and agrees with it. The 0.42x ratio to the public tracker is a difference between method families, not a Windflaw error, and the method note now says so on evidence rather than on conjecture.
 
-**The comparator:** the UK Wind Curtailment Monitor (Peter Dudfield and Archy de Berker, `wind.axle.energy`). Its published methodology confirms the same two datasets Windfall uses — FPN for what units declared they could generate, BOAL for what the grid instructed instead — so it is a genuine member of the same family rather than a second opinion from a different one. Its chart legend reads "Wind Potential", which could be mistaken for an availability model; the methodology makes clear the potential is the physical notification.
+**The comparator:** the UK Wind Curtailment Monitor (Peter Dudfield and Archy de Berker, `wind.axle.energy`). Its published methodology confirms the same two datasets Windflaw uses — FPN for what units declared they could generate, BOAL for what the grid instructed instead — so it is a genuine member of the same family rather than a second opinion from a different one. Its chart legend reads "Wind Potential", which could be mistaken for an availability model; the methodology makes clear the potential is the physical notification.
 
 **Results.** Six days, chosen to span a near-calm day to a heavily constrained one, with a run of consecutive recent days added after the first pass showed the largest disagreement on the most recent date.
 
-| Date | Windfall | Monitor | Ratio |
+| Date | Windflaw | Monitor | Ratio |
 |---|---|---|---|
 | 13 June | 51.08 GWh | 58.50 GWh | 0.873x |
 | 20 June | 23.75 GWh | 23.50 GWh | **1.010x** |
@@ -297,25 +297,25 @@ One fixture is deliberately not a straight copy: the calm-day mix moves Scotland
 
 *These are the figures from the 50-unit list. 015 replaces that list and re-runs the whole table; the conclusion of this entry survives, the 13 June row does not.*
 
-Three of six agree within 1%; mean ratio 1.014x. A fourth, 22 July, differs by 0.05 GWh — inside the 0.1 GWh the monitor rounds to, so it is agreement that cannot be measured more finely rather than a 9% miss. On 20 June — the phase 0 validation date — Windfall reads 23.75 GWh against the monitor's 23.50 while the public tracker reports 56.45. **Both balancing-mechanism methods sit at roughly 0.42x of the tracker.** That is the finding: the gap is a property of the method family, and it reproduces in a project that has nothing to do with this one.
+Three of six agree within 1%; mean ratio 1.014x. A fourth, 22 July, differs by 0.05 GWh — inside the 0.1 GWh the monitor rounds to, so it is agreement that cannot be measured more finely rather than a 9% miss. On 20 June — the phase 0 validation date — Windflaw reads 23.75 GWh against the monitor's 23.50 while the public tracker reports 56.45. **Both balancing-mechanism methods sit at roughly 0.42x of the tracker.** That is the finding: the gap is a property of the method family, and it reproduces in a project that has nothing to do with this one.
 
 This upgrades 003 from a defensible position to a supported one. The floor framing was always the honest choice; it is now also the demonstrably consistent one.
 
-**On the two outliers, and what was ruled out.** Two divergences in opposite directions cannot share one cause. Being *higher* than the monitor is the informative case, because the monitor covers more units than Windfall's 50 Scottish ones, so scope can only push its figure up.
+**On the two outliers, and what was ruled out.** Two divergences in opposite directions cannot share one cause. Being *higher* than the monitor is the informative case, because the monitor covers more units than Windflaw's 50 Scottish ones, so scope can only push its figure up.
 
 Three hypotheses were tested and eliminated:
 
 - **The zero-clamp (007).** Measured directly: over-instruction energy is **exactly zero** on all six days. Wind units are never instructed above their declaration, which makes sense — an offer to generate more is not physically available to a wind farm. The clamp is a correctness safeguard that never binds on this dataset. Worth knowing, and it means 007's stricter reading costs nothing.
-- **The SO flag.** Acceptances distinguish system-operator actions from energy balancing, and Windfall counts both. On 23 July every acceptance is already SO-flagged, so the flag cannot explain that day's excess. On 20 June, filtering to SO-only slightly *raises* the figure, via acceptance precedence — removing a higher-numbered non-SO acceptance lets a lower instructed level win.
+- **The SO flag.** Acceptances distinguish system-operator actions from energy balancing, and Windflaw counts both. On 23 July every acceptance is already SO-flagged, so the flag cannot explain that day's excess. On 20 June, filtering to SO-only slightly *raises* the figure, via acceptance precedence — removing a higher-numbered non-SO acceptance lets a lower instructed level win.
 - **Recency.** 23 July is the most recent complete day, so unsettled data was the obvious candidate. But 21 and 22 July are nearly as recent and agree at 0.992x and 0.913x.
 
 So 13 June is most likely unit scope — a heavily constrained day is when curtailment outside a 50-unit Scottish list is most likely to appear. 23 July was recorded as unexplained rather than attributed to the nearest plausible cause. It has since been explained; see 014. **Unit scope was the right guess and is confirmed in 015**, which also shows it overshoots: with the full population the day lands 17% *above* the monitor.
 
 **A caveat on ratios.** The monitor publishes to 0.1 GWh. On 22 July the absolute difference is 0.05 GWh and the ratio of 0.913x is mostly rounding. Ratio is the wrong statistic on a near-calm day, and the product should never be tempted to display one.
 
-**Consequence for the product:** the method note previously stated that larger published figures "are usually derived by estimating how much wind was available and subtracting what was metered". That was conjecture presented as fact — precisely the failure 010 named — since the tracker does not publish its method. It is replaced by what can be shown: that an independent tracker reading the same balancing data agrees with Windfall to within about 1% on most days. "On most days" is doing honest work there and should survive future copy edits.
+**Consequence for the product:** the method note previously stated that larger published figures "are usually derived by estimating how much wind was available and subtracting what was metered". That was conjecture presented as fact — precisely the failure 010 named — since the tracker does not publish its method. It is replaced by what can be shown: that an independent tracker reading the same balancing data agrees with Windflaw to within about 1% on most days. "On most days" is doing honest work there and should survive future copy edits.
 
-**What was rejected:** wiring the monitor in as a live comparator (Windfall must never need another project to be up in order to render, and the cross-check is a validation, not a feature); citing the agreement as a precise figure such as "within 1%" without qualification, when it is three days in six.
+**What was rejected:** wiring the monitor in as a live comparator (Windflaw must never need another project to be up in order to render, and the cross-check is a validation, not a feature); citing the agreement as a precise figure such as "within 1%" without qualification, when it is three days in six.
 
 ---
 
@@ -323,7 +323,7 @@ So 13 June is most likely unit scope — a heavily constrained day is when curta
 
 **Date:** 2026-07-24
 **Phase:** Phase 1 (stream C)
-**Decision:** 23 July is resolved. The monitor's published series for that day is missing two half-hours, 19:00 and 19:30, and those two periods carry 1,696.5 MWh in Windfall's derivation — 84% of the 2.03 GWh disagreement. Excluding them, the day agrees at 1.046x rather than 1.287x (1.049x against 1.297x on the 015 unit list), which puts it in line with every other day sampled.
+**Decision:** 23 July is resolved. The monitor's published series for that day is missing two half-hours, 19:00 and 19:30, and those two periods carry 1,696.5 MWh in Windflaw's derivation — 84% of the 2.03 GWh disagreement. Excluding them, the day agrees at 1.046x rather than 1.287x (1.049x against 1.297x on the 015 unit list), which puts it in line with every other day sampled.
 
 **How it was found, which is the part worth keeping.** Three hypotheses had already been eliminated in 013 by reasoning about mechanisms — the clamp, the SO flag, recency. A fourth guess would have been the same move again. Instead the question changed from *why* to *where*: `scripts/day-profile.ts` prints the day per period and per farm, on the argument that a single farm, a single window, and a uniform spread each imply a different cause and the shape distinguishes them before any mechanism is proposed.
 
@@ -331,9 +331,9 @@ The shape showed one continuous evening event peaking at 19:30 — exactly where
 
 **Confirming it is specific to that day:** the monitor's own chart traces were read directly. 23 July returns 46 half-hourly points where a settlement day has 48; 21 June and 13 June both return a complete 48 with no gaps. The daily headline figure is the sum of the same incomplete series (7.231 GWh against a published 7.2), so the gap propagates into the published total rather than being a plotting artefact.
 
-**Said plainly and without inflation:** this is a missing-data gap in a hourly-updating side project, on a day that was then the most recent complete one. It is the kind of thing that may well self-heal on a later ingest, and it says nothing about the monitor's method — which is the thing the cross-check was actually testing, and which continues to agree with Windfall. Finding it does not make Windfall more right; it removes a false disagreement.
+**Said plainly and without inflation:** this is a missing-data gap in a hourly-updating side project, on a day that was then the most recent complete one. It is the kind of thing that may well self-heal on a later ingest, and it says nothing about the monitor's method — which is the thing the cross-check was actually testing, and which continues to agree with Windflaw. Finding it does not make Windflaw more right; it removes a false disagreement.
 
-**A residue that is not explained.** The missing periods account for 84% of the gap, not all of it. From 22:00 to the end of the day Windfall reads consistently higher — 1,991 MWh against 1,647, a further 344 MWh. That tail is unexplained and is left so. The candidate is the same late-day incompleteness affecting the final hours less totally, but nothing here demonstrates it.
+**A residue that is not explained.** The missing periods account for 84% of the gap, not all of it. From 22:00 to the end of the day Windflaw reads consistently higher — 1,991 MWh against 1,647, a further 344 MWh. That tail is unexplained and is left so. The candidate is the same late-day incompleteness affecting the final hours less totally, but nothing here demonstrates it.
 
 **Consequence for the method note:** the note said 23 July was "not yet explained". It now reports the corrected figure *and* the correction, because a reader reproducing the comparison from the monitor's site today would get 29%, not 5%. Presenting only the corrected number would fail the exact test the note exists to pass.
 
@@ -349,7 +349,7 @@ The shape showed one continuous evening event peaking at 19:30 — exactly where
 **Phase:** Phase 1 (review follow-up)
 **Decision:** Replace the 50-unit hand-curated list with all 112 transmission-connected Scottish wind BMUs, derived from Elexon's BM unit registry. Closes the "most likely unit scope" left open in 013.
 
-**The test 013 called for.** 13 June was re-derived over every transmission-connected wind BMU, then split into tracked and untracked using Windfall's own level derivation, so the comparison is like-for-like. The reimplementation reproduced the tracked figure exactly.
+**The test 013 called for.** 13 June was re-derived over every transmission-connected wind BMU, then split into tracked and untracked using Windflaw's own level derivation, so the comparison is like-for-like. The reimplementation reproduced the tracked figure exactly.
 
 | Date | Tracked 50 | Everything else |
 |---|---|---|
@@ -367,7 +367,7 @@ The floor framing (003) is unaffected: embedded and distribution-connected Scott
 
 **What it does to the cross-check.** The whole table was re-run:
 
-| Date | Windfall (112 units) | Monitor | Ratio |
+| Date | Windflaw (112 units) | Monitor | Ratio |
 |---|---|---|---|
 | 13 June | 68.34 GWh | 58.50 GWh | 1.168x |
 | 20 June | 23.75 GWh | 23.50 GWh | **1.010x** |
@@ -376,7 +376,7 @@ The floor framing (003) is unaffected: embedded and distribution-connected Scott
 | 22 July | 0.57 GWh | 0.60 GWh | 0.954x |
 | 23 July | 9.34 GWh | 7.20 GWh | 1.297x |
 
-Three days sit within 2% where three sat within 1%, and 22 July's difference is still 0.03 GWh — inside the monitor's rounding, as 013 said. 13 June has flipped from 13% low to 17% high, which is a real change of sign and is **not** claimed as resolved. Windfall now measures a larger population than the comparator does on the day when population matters most; that is a plausible reading of a 1.168x, not a demonstrated one, and the honest position is that the largest disagreement in the sample moved rather than closed.
+Three days sit within 2% where three sat within 1%, and 22 July's difference is still 0.03 GWh — inside the monitor's rounding, as 013 said. 13 June has flipped from 13% low to 17% high, which is a real change of sign and is **not** claimed as resolved. Windflaw now measures a larger population than the comparator does on the day when population matters most; that is a plausible reading of a 1.168x, not a demonstrated one, and the honest position is that the largest disagreement in the sample moved rather than closed.
 
 **Consequence for the product:** the method note's coverage line is generated from the payload, so it now reads 112 units and 13,105 MW, and "transmission-connected Scottish wind units" is finally the population rather than a subset of it. The cross-check paragraph is rewritten against the new table, including the 17%.
 
@@ -390,11 +390,11 @@ Three days sit within 2% where three sat within 1%, and 22 July's difference is 
 **Phase:** Phase 1 (review follow-up)
 **Decision:** Model the pre-first-fetch state explicitly. The four states in 010 become five, with a sixth screen (`?state=waiting`) in the toggle.
 
-**The failure.** `main.ts` rendered synchronously with empty feeds, before `refresh()` had issued a request. With no loading state in the model, empty-and-untried rendered identically to tried-and-failed, so every cold load opened on three confident false claims: "Windfall is not reaching its data sources", "Elexon's balancing data did not answer this time", "no reading arrived this half-hour". It was the exact failure 010 names, on the first screen a reader following a link ever sees, and it lasted as long as the first fetch took — longer on a cold function with a CDN miss. `data-boot` was no help either: it was set before the fetch resolved.
+**The failure.** `main.ts` rendered synchronously with empty feeds, before `refresh()` had issued a request. With no loading state in the model, empty-and-untried rendered identically to tried-and-failed, so every cold load opened on three confident false claims: "Windflaw is not reaching its data sources", "Elexon's balancing data did not answer this time", "no reading arrived this half-hour". It was the exact failure 010 names, on the first screen a reader following a link ever sees, and it lasted as long as the first fetch took — longer on a cold function with a CDN miss. `data-boot` was no help either: it was set before the fetch resolved.
 
 **The distinction, which is the whole entry:** *did not answer* is a claim about a source. *Has not answered yet* is a claim about us. The page may only make the first one after it has actually asked.
 
-So `AppState.pending` is true until the first fetch settles, the copy in that state describes what the product is doing and asserts nothing about the data ("Windfall is asking Elexon what is being held down this half-hour. Nothing is claimed until it answers"), the freshness dot is drawn hollow because green, amber and red are each already a claim, and `data-boot = 'ready'` now marks the first *resolved* fetch.
+So `AppState.pending` is true until the first fetch settles, the copy in that state describes what the product is doing and asserts nothing about the data ("Windflaw is asking Elexon what is being held down this half-hour. Nothing is claimed until it answers"), the freshness dot is drawn hollow because green, amber and red are each already a claim, and `data-boot = 'ready'` now marks the first *resolved* fetch.
 
 **What was rejected:** a spinner (it says "wait" and nothing about what is being waited for, and this page has room to say it in words); holding the first paint until data arrives (a blank screen is not more honest than one that says what it is doing); keeping the strapline off the waiting screen (a reader who has just followed a link still needs the product introduced — the notice slot is only spent on warnings, per the masthead's slot rule).
 

@@ -77,7 +77,7 @@ export function buildPrompt(situation: Situation): { system: string; user: strin
 
   const system =
     'You write a single short paragraph narrating the British electricity grid, for a public website ' +
-    'called Windfall. British English, plain register, no exclamation marks, no enthusiasm. ' +
+    'called Windflaw. British English, plain register, no exclamation marks, no enthusiasm. ' +
     'You may be slightly wry about the specific paradox of paying wind farms to switch off while gas ' +
     'plants elsewhere pick up the load, but only when the facts below actually show that happening — ' +
     'on a calm, ordinary half-hour with nothing curtailed, stay flat and say so plainly rather than ' +

@@ -81,7 +81,7 @@ export function narrationView(): View {
       if (!fallback) {
         setAttr(root, 'data-provenance', 'none');
         setTextCrossfade(body, 'Nothing to describe: no reading arrived this half-hour.');
-        setTextCrossfade(strap, 'Windfall is not reaching its data sources.');
+        setTextCrossfade(strap, 'Windflaw is not reaching its data sources.');
         return;
       }
 

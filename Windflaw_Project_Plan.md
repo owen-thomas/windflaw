@@ -1,14 +1,14 @@
-# Windfall — Project Plan
+# Windflaw — Project Plan
 
 *Handover document for executing agents. Written 24 July 2026. Owner: Owen Thomas. Strategy and case study framing live in the Claude job search project; this document governs the build.*
 
 -----
 
-## 1. What Windfall is
+## 1. What Windflaw is
 
 A single live web page answering one question: what is Britain's grid doing right now, and how much Scottish wind is being switched off while it happens.
 
-The organising idea is a paradox. In 2025 Britain paid roughly £380m to turn Scottish wind farms off and over £1bn to turn English gas plants on, because the transmission network cannot carry the power south. Constraint costs are forecast to reach £4–8bn annually by 2030. The fix arrives late this decade. Windfall makes this visible in real time: wind curtailed in the north, gas ramping in the south, both paid for by the person looking at the screen.
+The organising idea is a paradox. In 2025 Britain paid roughly £380m to turn Scottish wind farms off and over £1bn to turn English gas plants on, because the transmission network cannot carry the power south. Constraint costs are forecast to reach £4–8bn annually by 2030. The fix arrives late this decade. Windflaw makes this visible in real time: wind curtailed in the north, gas ramping in the south, both paid for by the person looking at the screen.
 
 This is not a dashboard. It is one resolved screen with a point of view. Every element serves the paradox.
 
@@ -16,9 +16,9 @@ This is not a dashboard. It is one resolved screen with a point of view. Every e
 
 ## 2. Why it exists (context for agents)
 
-Windfall is a portfolio project for Owen Thomas, a Design Director in Edinburgh. It exists to prove three things his existing work does not:
+Windflaw is a portfolio project for Owen Thomas, a Design Director in Edinburgh. It exists to prove three things his existing work does not:
 
-1. **AI in the product loop** — the product's behaviour is generative, not just AI-built. Hiring conversations now test for "a clear point of view on what good looks like when the system is dynamic, generative, or probabilistic". Windfall is the evidence.
+1. **AI in the product loop** — the product's behaviour is generative, not just AI-built. Hiring conversations now test for "a clear point of view on what good looks like when the system is dynamic, generative, or probabilistic". Windflaw is the evidence.
 2. **Live data through an API** — real data on its own schedule, with the design problems that follow: latency, staleness, gaps, error states, trust.
 3. **Motion as interaction craft** — choreographed transitions and state changes in service of comprehension, not ambience.
 
@@ -35,7 +35,7 @@ Windfall is a portfolio project for Owen Thomas, a Design Director in Edinburgh.
 
 ## 4. Architecture (recommendation, confirm with Owen at kickoff)
 
-- **Frontend:** Vite + TypeScript. Visualisation via D3 for data-driven elements; plain SVG/Canvas where simpler. React only if component complexity demands it — default to vanilla for a single-screen product. Owen's type conventions: Fraunces (300/600) and IBM Plex Mono/Sans are his established palette, but Windfall may warrant its own identity — treat visual language as a design decision to make with Owen, not a default to inherit.
+- **Frontend:** Vite + TypeScript. Visualisation via D3 for data-driven elements; plain SVG/Canvas where simpler. React only if component complexity demands it — default to vanilla for a single-screen product. Owen's type conventions: Fraunces (300/600) and IBM Plex Mono/Sans are his established palette, but Windflaw may warrant its own identity — treat visual language as a design decision to make with Owen, not a default to inherit.
 - **Hosting:** Vercel (matches Owen's existing deployment pattern for owenthomas.work).
 - **Serverless functions (Vercel) for:**
   - AI narration — calls the Anthropic API. The key must never ship client-side.
@@ -158,4 +158,4 @@ Cost-today figure via NESO balancing cost data or bid-price joins. A day/week re
 
 -----
 
-*Method note for the eventual product: Windfall should carry a short public note explaining the derivation and its limitations. Honesty about method is part of the design position.*
+*Method note for the eventual product: Windflaw should carry a short public note explaining the derivation and its limitations. Honesty about method is part of the design position.*

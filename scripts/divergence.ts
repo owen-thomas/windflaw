@@ -1,29 +1,29 @@
 /**
- * Why Windfall and the Wind Curtailment Monitor disagree on some days.
+ * Why Windflaw and the Wind Curtailment Monitor disagree on some days.
  *
  * The cross-check (scripts/cross-check.ts) found agreement to 1% on two of
- * four days, but Windfall 29% *above* the monitor on a quiet day and 13%
+ * four days, but Windflaw 29% *above* the monitor on a quiet day and 13%
  * below it on a heavily constrained one. Two divergences in opposite
  * directions cannot share one cause, so this tests the candidates separately.
  *
  * Being *higher* is the informative case. The monitor covers more units than
- * Windfall's 50 Scottish ones, so a scope difference can only push the
- * monitor's figure up, never down. Something must be counted by Windfall and
+ * Windflaw's 50 Scottish ones, so a scope difference can only push the
+ * monitor's figure up, never down. Something must be counted by Windflaw and
  * not by them.
  *
  * Two hypotheses, both measurable here:
  *
- *   1. The zero-clamp (DECISIONS 007). Windfall clamps each sample at zero so
+ *   1. The zero-clamp (DECISIONS 007). Windflaw clamps each sample at zero so
  *      over-instruction cannot net off curtailment; the monitor's methodology
  *      describes a signed "curtailment or redespatching level". If that is the
- *      difference, netting should move Windfall toward the monitor.
+ *      difference, netting should move Windflaw toward the monitor.
  *
  *   2. The SO flag. Acceptances carry a system-operator flag distinguishing
  *      actions taken for system reasons — constraints — from energy balancing.
  *      The monitor reports wind "discarded due to transmission constraints".
- *      Windfall counts every acceptance regardless of flag. On a quiet day,
+ *      Windflaw counts every acceptance regardless of flag. On a quiet day,
  *      non-constraint balancing is a larger share of a smaller total, which
- *      would inflate Windfall exactly where it is observed to be inflated.
+ *      would inflate Windflaw exactly where it is observed to be inflated.
  *
  * Neither production behaviour changes on the strength of this script; it
  * exists to make the method note's claims testable.

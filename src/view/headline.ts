@@ -60,7 +60,7 @@ export function headlineView(): View {
         setTextCrossfade(figure, 'Reading');
         setTextCrossfade(
           predicate,
-          'Windfall is asking Elexon what is being held down this half-hour. Nothing is ' +
+          'Windflaw is asking Elexon what is being held down this half-hour. Nothing is ' +
             'claimed until it answers.'
         );
         shareFill.style.width = '0%';
@@ -77,7 +77,7 @@ export function headlineView(): View {
         setTextCrossfade(
           predicate,
           state.curtailmentError
-            ? 'Windfall could not reach its own reading of the balancing mechanism.'
+            ? 'Windflaw could not reach its own reading of the balancing mechanism.'
             : 'Elexon’s balancing data did not answer this time. The generation mix above is unaffected.'
         );
         shareFill.style.width = '0%';
@@ -123,7 +123,7 @@ export function headlineView(): View {
       shareFill.style.width = `${Math.min(100, share)}%`;
       setText(
         shareNote,
-        `${formatPct(share)} of the ${formatMW(data.method.capacityMW)} of Scottish wind Windfall tracks.`
+        `${formatPct(share)} of the ${formatMW(data.method.capacityMW)} of Scottish wind Windflaw tracks.`
       );
 
       clear(farms);

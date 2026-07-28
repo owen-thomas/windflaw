@@ -4,7 +4,7 @@
  * The method note is a designed element rather than small print (DECISIONS
  * 003): the headline figure is deliberately conservative, and a reader who
  * has seen a larger number elsewhere needs to find out why here rather than
- * conclude Windfall is wrong. It sits closed by default and one click away.
+ * conclude Windflaw is wrong. It sits closed by default and one click away.
  *
  * Source health is stated in words next to a mark, never by colour alone.
  */
@@ -61,16 +61,16 @@ export function colophonView(): View {
       el('p', {
         class: 'method__floor',
         text:
-          'Published figures for curtailment are often larger. Windfall counts only instructed ' +
+          'Published figures for curtailment are often larger. Windflaw counts only instructed ' +
           'turn-downs — wind the grid actively paid to switch off — which is a floor: real ' +
           'curtailment is higher, and this figure will never overstate it. For 20 June 2026, ' +
-          'Windfall derives 23.75 GWh where a widely cited figure for the same day is 56.45.',
+          'Windflaw derives 23.75 GWh where a widely cited figure for the same day is 56.45.',
       }),
       el('p', {
         class: 'method__check',
         text:
           'The Wind Curtailment Monitor, an independent tracker reading the same balancing ' +
-          'data, derives 23.50 GWh for that day. Across six sampled days Windfall came within ' +
+          'data, derives 23.50 GWh for that day. Across six sampled days Windflaw came within ' +
           '2% on three and within the tracker’s own rounding on a fourth. It reads 17% above ' +
           'the tracker on 13 June, the most heavily constrained day sampled, and 30% above on ' +
           '23 July — a gap that falls to about 5% once two half-hours absent from the ' +
@@ -84,7 +84,7 @@ export function colophonView(): View {
       elexon.row,
       el('p', {
         class: 'colophon__byline',
-        text: 'Windfall · built by Owen Thomas · figures are lower bounds',
+        text: 'Windflaw · built by Owen Thomas · figures are lower bounds',
       })
     )
   );

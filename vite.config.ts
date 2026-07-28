@@ -14,7 +14,7 @@ import { defineConfig, type Plugin } from 'vite';
  */
 function devApi(): Plugin {
   return {
-    name: 'windfall-dev-api',
+    name: 'windflaw-dev-api',
     configureServer(server) {
       // Vercel injects env vars into `process.env` in deployment; locally
       // there is no equivalent, and Vite's own .env handling only exposes

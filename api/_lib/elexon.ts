@@ -36,10 +36,10 @@
  * segments cover it.
  */
 
-import { SCOTTISH_WIND_BMUS, SCOTTISH_WIND_SET } from './bmus';
-import { fetchJson } from './http';
-import { addDays, periodsInDay } from '../../src/lib/settlement';
-import type { CurtailedFarm, CurtailedUnit } from '../../src/lib/types';
+import { SCOTTISH_WIND_BMUS, SCOTTISH_WIND_SET } from './bmus.js';
+import { fetchJson } from './http.js';
+import { addDays, periodsInDay } from '../../src/lib/settlement.js';
+import type { CurtailedFarm, CurtailedUnit } from '../../src/lib/types.js';
 
 const BASE = 'https://data.elexon.co.uk/bmrs/api/v1';
 

@@ -15,8 +15,8 @@
  * generation always is.
  */
 
-import type { CurtailmentResponse, GridResponse } from './types';
-import type { SettlementRef } from './settlement';
+import type { CurtailmentResponse, GridResponse } from './types.js';
+import type { SettlementRef } from './settlement.js';
 
 export type ConstraintState = 'constrained' | 'clear' | 'unknown';
 export type ForecastDirection = 'rising' | 'falling' | 'flat' | null;

@@ -13,7 +13,7 @@
  *    source cannot poison a cacheable response or blank a working element.
  */
 
-import type { SettlementRef } from './settlement';
+import type { SettlementRef } from './settlement.js';
 
 export type SourceHealth = 'ok' | 'partial' | 'failed';
 

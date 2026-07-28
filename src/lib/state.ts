@@ -12,8 +12,8 @@
  * response arrived, because a CDN hit can be minutes old (DECISIONS 005).
  */
 
-import { msUntilRollover, type SettlementRef } from './settlement';
-import type { CurtailmentResponse, GridResponse, NarrationResponse } from './types';
+import { msUntilRollover, type SettlementRef } from './settlement.js';
+import type { CurtailmentResponse, GridResponse, NarrationResponse } from './types.js';
 
 export type Freshness = 'fresh' | 'ageing' | 'stale';
 

@@ -1,5 +1,5 @@
 /* Generated from live endpoints — see scenarios.ts. */
-import type { GridResponse, CurtailmentResponse } from './types';
+import type { GridResponse, CurtailmentResponse } from './types.js';
 
 export const SAMPLE_GRID: GridResponse = {
   "fetchedAt": "2026-07-24T19:48:53.731Z",

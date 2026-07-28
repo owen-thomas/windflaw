@@ -11,9 +11,9 @@
  * figure, and description only — it never advises.
  */
 
-import { formatMW, formatPct } from './format';
-import { situationOf } from './situation';
-import type { CurtailmentResponse, GridResponse } from './types';
+import { formatMW, formatPct } from './format.js';
+import { situationOf } from './situation.js';
+import type { CurtailmentResponse, GridResponse } from './types.js';
 
 export interface Narration {
   text: string;

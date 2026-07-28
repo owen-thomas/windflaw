@@ -15,7 +15,7 @@
  * would read as contradicting a number two rows above it.
  */
 
-import type { Situation } from '../../src/lib/situation';
+import type { Situation } from '../../src/lib/situation.js';
 
 export const MIN_WORDS = 40;
 export const MAX_WORDS = 70;

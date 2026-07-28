@@ -17,8 +17,8 @@ import type {
   NationalState,
   RegionState,
   RegionalState,
-} from '../../src/lib/types';
-import { fetchJson } from './http';
+} from '../../src/lib/types.js';
+import { fetchJson } from './http.js';
 
 const BASE = 'https://api.carbonintensity.org.uk';
 

@@ -13,10 +13,10 @@
  * from a dev server.
  */
 
-import type { CurtailmentResponse, GridResponse } from './types';
-import { previousPeriod, settlementAt } from './settlement';
-import { SAMPLE_CURTAILMENT, SAMPLE_GRID } from './sample';
-import { emptyFeeds, type Feeds } from './state';
+import type { CurtailmentResponse, GridResponse } from './types.js';
+import { previousPeriod, settlementAt } from './settlement.js';
+import { SAMPLE_CURTAILMENT, SAMPLE_GRID } from './sample.js';
+import { emptyFeeds, type Feeds } from './state.js';
 
 export interface Scenario {
   name: string;

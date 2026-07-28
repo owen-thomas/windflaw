@@ -9,11 +9,11 @@
  * alone rather than blanking the screen. See types.ts.
  */
 
-import type { GridResponse, SourceHealth } from '../src/lib/types';
-import type { ApiRequest, ApiResponse } from './_lib/handler';
-import { fetchForecast, fetchNational, fetchRegions } from './_lib/carbon';
-import { errorMessage, overallHealth, setCacheHeaders } from './_lib/http';
-import { settlementAt } from '../src/lib/settlement';
+import type { GridResponse, SourceHealth } from '../src/lib/types.js';
+import type { ApiRequest, ApiResponse } from './_lib/handler.js';
+import { fetchForecast, fetchNational, fetchRegions } from './_lib/carbon.js';
+import { errorMessage, overallHealth, setCacheHeaders } from './_lib/http.js';
+import { settlementAt } from '../src/lib/settlement.js';
 
 export default async function handler(_req: ApiRequest, res: ApiResponse) {
   const [national, regions, forecast] = await Promise.allSettled([

@@ -36,13 +36,13 @@
 import type {
   ApiRequest,
   ApiResponse,
-} from './_lib/handler';
-import type { CurtailmentResponse, GridResponse, NarrationResponse } from '../src/lib/types';
-import gridHandler from './grid';
-import curtailmentHandler from './curtailment';
-import { situationOf } from '../src/lib/situation';
-import { buildPrompt, validate } from './_lib/narration-prompt';
-import { msUntilRollover, previousPeriod, settlementAt, type SettlementRef } from '../src/lib/settlement';
+} from './_lib/handler.js';
+import type { CurtailmentResponse, GridResponse, NarrationResponse } from '../src/lib/types.js';
+import gridHandler from './grid.js';
+import curtailmentHandler from './curtailment.js';
+import { situationOf } from '../src/lib/situation.js';
+import { buildPrompt, validate } from './_lib/narration-prompt.js';
+import { msUntilRollover, previousPeriod, settlementAt, type SettlementRef } from '../src/lib/settlement.js';
 
 const MODEL = 'claude-sonnet-5';
 const MAX_TOKENS = 220;

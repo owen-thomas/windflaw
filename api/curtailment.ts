@@ -12,12 +12,12 @@
  * derivation itself.
  */
 
-import type { CurtailmentResponse, SourceHealth } from '../src/lib/types';
-import type { ApiRequest, ApiResponse } from './_lib/handler';
-import { deriveNow, deriveSettled, fetchBOALF, fetchPN } from './_lib/elexon';
-import { SCOTTISH_WIND_IDS, TRACKED_CAPACITY_MW } from './_lib/bmus';
-import { errorMessage, overallHealth, setCacheHeaders } from './_lib/http';
-import { previousPeriod, settlementAt } from '../src/lib/settlement';
+import type { CurtailmentResponse, SourceHealth } from '../src/lib/types.js';
+import type { ApiRequest, ApiResponse } from './_lib/handler.js';
+import { deriveNow, deriveSettled, fetchBOALF, fetchPN } from './_lib/elexon.js';
+import { SCOTTISH_WIND_IDS, TRACKED_CAPACITY_MW } from './_lib/bmus.js';
+import { errorMessage, overallHealth, setCacheHeaders } from './_lib/http.js';
+import { previousPeriod, settlementAt } from '../src/lib/settlement.js';
 
 const METHOD_BASIS =
   'Instructed turn-downs of transmission-connected Scottish wind via the ' +

@@ -17,8 +17,8 @@
  * not an upstream.
  */
 
-import type { CurtailmentResponse, GridResponse, NarrationResponse } from './types';
-import { settlementAt } from './settlement';
+import type { CurtailmentResponse, GridResponse, NarrationResponse } from './types.js';
+import { settlementAt } from './settlement.js';
 
 const TIMEOUT_MS = 10_000;
 

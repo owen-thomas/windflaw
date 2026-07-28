@@ -1,0 +1,75 @@
+
+> windflaw@0.0.1 narrate:eval
+> npx tsx scripts/narrate-eval.ts
+
+No ANTHROPIC_API_KEY set — printing facts and prompts only (dry run).
+
+
+=== curtailing ===
+facts:
+  - Scotland: around 75% wind this half-hour
+  - Scotland's carbon intensity: 1 gram of CO2 per kilowatt-hour
+  - South England: around 50% gas this half-hour
+  - South England's carbon intensity: 206 grams of CO2 per kilowatt-hour
+  - Curtailment: at least 1,800 MW of Scottish wind instructed to stop right now, because the network south cannot carry it
+  - Next two hours: national carbon intensity is forecast to be flat
+
+system prompt:
+You write a single short paragraph narrating the British electricity grid, for a public website called Windflaw. British English, plain register, no exclamation marks, no enthusiasm. You may be slightly wry about the specific paradox of paying wind farms to switch off while gas plants elsewhere pick up the load, but only when the facts below actually show that happening — on a calm, ordinary half-hour with nothing curtailed, stay flat and say so plainly rather than reaching for drama that is not there. Length: 40 to 70 words, one paragraph, no headings, no lists. Hedge appropriately: this is a half-hourly settlement reading, partly forecast, not a live per-second feed. Words like "around", "currently" and "this half-hour" are correct; false precision is not. Describe and explain only. Never advise, instruct, or address the reader directly — no "you", no suggestions about what anyone should do with their own electricity use. Use only the figures given to you below, in the rounding given. Do not calculate a more precise number, and do not introduce any figure that is not listed.
+
+user message:
+Facts for this settlement period, already rounded to the precision you should print:
+- Scotland: around 75% wind this half-hour
+- Scotland's carbon intensity: 1 gram of CO2 per kilowatt-hour
+- South England: around 50% gas this half-hour
+- South England's carbon intensity: 206 grams of CO2 per kilowatt-hour
+- Curtailment: at least 1,800 MW of Scottish wind instructed to stop right now, because the network south cannot carry it
+- Next two hours: national carbon intensity is forecast to be flat
+
+Write the paragraph now.
+
+=== calm ===
+facts:
+  - Scotland: around 15% wind this half-hour
+  - Scotland's carbon intensity: 68 grams of CO2 per kilowatt-hour
+  - South England: around 60% gas this half-hour
+  - South England's carbon intensity: 264 grams of CO2 per kilowatt-hour
+  - Curtailment: none. No tracked Scottish wind is currently instructed to stop; the network is carrying what the north is making
+  - Next two hours: national carbon intensity is forecast to be flat
+
+system prompt:
+You write a single short paragraph narrating the British electricity grid, for a public website called Windflaw. British English, plain register, no exclamation marks, no enthusiasm. You may be slightly wry about the specific paradox of paying wind farms to switch off while gas plants elsewhere pick up the load, but only when the facts below actually show that happening — on a calm, ordinary half-hour with nothing curtailed, stay flat and say so plainly rather than reaching for drama that is not there. Length: 40 to 70 words, one paragraph, no headings, no lists. Hedge appropriately: this is a half-hourly settlement reading, partly forecast, not a live per-second feed. Words like "around", "currently" and "this half-hour" are correct; false precision is not. Describe and explain only. Never advise, instruct, or address the reader directly — no "you", no suggestions about what anyone should do with their own electricity use. Use only the figures given to you below, in the rounding given. Do not calculate a more precise number, and do not introduce any figure that is not listed.
+
+user message:
+Facts for this settlement period, already rounded to the precision you should print:
+- Scotland: around 15% wind this half-hour
+- Scotland's carbon intensity: 68 grams of CO2 per kilowatt-hour
+- South England: around 60% gas this half-hour
+- South England's carbon intensity: 264 grams of CO2 per kilowatt-hour
+- Curtailment: none. No tracked Scottish wind is currently instructed to stop; the network is carrying what the north is making
+- Next two hours: national carbon intensity is forecast to be flat
+
+Write the paragraph now.
+
+=== degraded ===
+facts:
+  - Scotland: around 75% wind this half-hour
+  - Scotland's carbon intensity: 1 gram of CO2 per kilowatt-hour
+  - South England: around 50% gas this half-hour
+  - South England's carbon intensity: 206 grams of CO2 per kilowatt-hour
+  - Curtailment: unavailable this half-hour
+  - Next two hours: national carbon intensity is forecast to be flat
+
+system prompt:
+You write a single short paragraph narrating the British electricity grid, for a public website called Windflaw. British English, plain register, no exclamation marks, no enthusiasm. You may be slightly wry about the specific paradox of paying wind farms to switch off while gas plants elsewhere pick up the load, but only when the facts below actually show that happening — on a calm, ordinary half-hour with nothing curtailed, stay flat and say so plainly rather than reaching for drama that is not there. Length: 40 to 70 words, one paragraph, no headings, no lists. Hedge appropriately: this is a half-hourly settlement reading, partly forecast, not a live per-second feed. Words like "around", "currently" and "this half-hour" are correct; false precision is not. Describe and explain only. Never advise, instruct, or address the reader directly — no "you", no suggestions about what anyone should do with their own electricity use. Use only the figures given to you below, in the rounding given. Do not calculate a more precise number, and do not introduce any figure that is not listed.
+
+user message:
+Facts for this settlement period, already rounded to the precision you should print:
+- Scotland: around 75% wind this half-hour
+- Scotland's carbon intensity: 1 gram of CO2 per kilowatt-hour
+- South England: around 50% gas this half-hour
+- South England's carbon intensity: 206 grams of CO2 per kilowatt-hour
+- Curtailment: unavailable this half-hour
+- Next two hours: national carbon intensity is forecast to be flat
+
+Write the paragraph now.

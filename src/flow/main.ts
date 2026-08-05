@@ -111,6 +111,13 @@ window.addEventListener('keydown', (e) => {
     // — see field.ts's noiseMode docs.
     fieldParams.noiseMode = fieldParams.noiseMode === 'transverse' ? 'isotropicCurl' : 'transverse';
     console.log(`[flow] noiseMode -> ${fieldParams.noiseMode}`);
+  } else if (e.key === 'c') {
+    // 2i A/B: coast conformance on vs off — see field.ts's conformWeight
+    // docs. conformWeight=0 is a clean disable (the term short-circuits),
+    // same "off via 0" convention as driftSpread/centerWeight/noiseWeight.
+    fieldParams.conformWeight =
+      fieldParams.conformWeight > 0 ? 0 : DEFAULT_FIELD_PARAMS.conformWeight;
+    console.log(`[flow] conformWeight -> ${fieldParams.conformWeight}`);
   }
 });
 

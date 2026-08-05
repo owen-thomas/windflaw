@@ -33,7 +33,7 @@
  * Run with:
  *   npx tsx scripts/flow-harness.ts [--particles=3000] [--seconds=60] [--legacy]
  *     [--baseFieldMode=divergent|south] [--noDensity]
- *     [--noiseMode=transverse|isotropicCurl]
+ *     [--noiseMode=transverse|isotropicCurl] [--noConform]
  *
  * --legacy reproduces step 1's fixed 4-9s age-budget ceiling (only), for a
  * true before/after comparison of just that fix in isolation from 2a-2e.
@@ -45,6 +45,8 @@
  * --noiseMode=isotropicCurl reproduces the step-2 noise mechanism (2h's
  * diagnosed reversal-at-the-sources cause) for a before/after of 2h in
  * isolation; default 'transverse' is the fan-out doc's fix.
+ * --noConform disables 2i's wide coast-conform band (conformWeight=0) for
+ * a before/after of 2i in isolation.
  */
 
 import { performance } from 'node:perf_hooks';
@@ -64,6 +66,8 @@ interface Args {
   densityEnabled: boolean;
   /** 2h A/B: --noiseMode=isotropicCurl reproduces the step-2 noise mechanism for comparison. */
   noiseMode: FieldParams['noiseMode'];
+  /** 2i A/B: --noConform disables the coast-conform band for comparison. */
+  conformEnabled: boolean;
 }
 
 function parseArgs(): Args {
@@ -91,6 +95,7 @@ function parseArgs(): Args {
     baseFieldMode,
     densityEnabled: !argv.includes('--noDensity'),
     noiseMode,
+    conformEnabled: !argv.includes('--noConform'),
   };
 }
 
@@ -112,6 +117,7 @@ function run(args: Args) {
     baseFieldMode: args.baseFieldMode,
     densityEnabled: args.densityEnabled,
     noiseMode: args.noiseMode,
+    conformWeight: args.conformEnabled ? DEFAULT_FIELD_PARAMS.conformWeight : 0,
   };
 
   const deathCounts: Record<DeathCause, number> = {
@@ -191,7 +197,7 @@ function run(args: Args) {
     `\n=== flow-harness: ${args.particles} particles, ${args.seconds}s sim, ` +
       `ageBudgetMode=${args.ageBudgetMode}, baseFieldMode=${args.baseFieldMode}, ` +
       `densityEnabled=${args.densityEnabled}, noiseMode=${args.noiseMode}, ` +
-      `${args.width}x${args.height} ===\n`,
+      `conformEnabled=${args.conformEnabled}, ${args.width}x${args.height} ===\n`,
   );
 
   if (totalDeaths === 0) {

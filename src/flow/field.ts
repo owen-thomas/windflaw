@@ -148,6 +148,25 @@ export interface FieldParams {
    * landing value) leaves the target flat.
    */
   spacingWaveAmplitude: number;
+  /**
+   * Device px from the coast at which the gentle coast-conform band (2i of
+   * `Flow experiment fan-out.txt`) starts. Wider than steerThreshold (the
+   * tight rescue) on purpose — the spec's "near coasts it turns to run
+   * alongside them" should read well before a particle is close enough to
+   * need rescuing, not only as an accident of the rescue firing. The two
+   * bands are gated not to overlap: conform is [steerThreshold,
+   * conformThreshold), rescue is everything inside steerThreshold.
+   */
+  conformThreshold: number;
+  /**
+   * Max strength of the coast-conform rotation, 0..1, reached right at the
+   * boundary where the tight rescue takes over (steerThreshold) and
+   * ramping to 0 at conformThreshold. Unlike the rescue below (which
+   * pushes/blends velocity additively), this rotates the base direction
+   * toward the coast tangent while preserving its magnitude — a conform,
+   * not a push: it bends the journey rather than adding energy to it.
+   */
+  conformWeight: number;
 }
 
 export const DEFAULT_FIELD_PARAMS: FieldParams = {
@@ -271,6 +290,12 @@ export const DEFAULT_FIELD_PARAMS: FieldParams = {
   // trough but never so far it goes negative (the density block clamps
   // that regardless, but this keeps normal operation away from the clamp).
   spacingWaveAmplitude: 0.5,
+  // 2i: comfortably wider than steerThreshold's 18px, so the conform band
+  // has room to actually turn a particle before the tight rescue would
+  // otherwise have to. See conformWeight's own docs for why it rotates
+  // rather than pushes.
+  conformThreshold: 55,
+  conformWeight: 0.55,
 };
 
 /**
@@ -516,6 +541,48 @@ export function sampleField(
       vx += dgx * push;
       vy += dgy * push;
     }
+  }
+
+  // --- Coast conformance (2i): a wide, gentle band that rotates the base
+  // direction (everything computed above — drift, path, fan, centering,
+  // noise, lateral bias, density) toward the coast tangent well before the
+  // tight rescue below has to fire. 2f and 2g push lines outward into
+  // coastal cells; this is what turns them to run along the coast once
+  // they arrive, which is what actually makes the silhouette legible —
+  // "fan-out delivers ink to the edge, conformance makes the edge
+  // legible" (the fan-out doc). Gated to stay outside the tight rescue's
+  // radius so the two bands don't double up.
+  if (dist < params.conformThreshold && dist >= params.steerThreshold && params.conformWeight > 0) {
+    const proximity = Math.min(
+      1,
+      Math.max(
+        0,
+        (params.conformThreshold - dist) / Math.max(1e-3, params.conformThreshold - params.steerThreshold),
+      ),
+    );
+    const blend = params.conformWeight * proximity;
+    const baseLen = Math.hypot(vx, vy) || 1;
+    const bx = vx / baseLen;
+    const by = vy / baseLen;
+    // Tangent candidates, pick whichever keeps the field's own emerging
+    // direction (bx, by) rather than reversing it — same tie-break shape
+    // as the tight rescue below, but against the base direction computed
+    // so far, not the particle's persisted heading (that's eased toward
+    // this result afterwards, in particles.ts).
+    const t1x = -gy;
+    const t1y = gx;
+    const t2x = gy;
+    const t2y = -gx;
+    const dot1 = t1x * bx + t1y * by;
+    const dot2 = t2x * bx + t2y * by;
+    const [tanX, tanY] = dot1 >= dot2 ? [t1x, t1y] : [t2x, t2y];
+    // Rotate toward the tangent, preserving magnitude — a conform, not a
+    // push (see conformWeight's own docs).
+    const newBx = bx * (1 - blend) + tanX * blend;
+    const newBy = by * (1 - blend) + tanY * blend;
+    const newLen = Math.hypot(newBx, newBy) || 1;
+    vx = (newBx / newLen) * baseLen;
+    vy = (newBy / newLen) * baseLen;
   }
 
   // --- Boundary steering (rescue near the coast).

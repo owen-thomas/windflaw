@@ -1,72 +1,308 @@
+import { buildPerlin3, curl2D, type Noise3 } from './noise';
 import type { World } from './world';
 import type { Vec2 } from './types';
 
 /**
- * V1-skeleton flow field: southward base drift, weakening south, plus
- * boundary steering near the coast. This is deliberately the crude subset
- * of the spec's full field (section "The flow field") — curl noise and
- * source outflow are step 2/3 work; adding them now would make it
- * impossible to judge whether containment steering alone is working.
+ * The flow field: southward base drift (fanning out across England),
+ * curl noise for organic swirl, whole-interior centering, and coast-hugging
+ * boundary steering. This is the "Motion" step (step 2) build-out of the
+ * spec's "The flow field" section — step 1 shipped only drift + boundary
+ * steering; step 2 (see `Flow experiment step 2.txt`) adds the rest and
+ * retunes the two step-1 terms now that they're not doing rescue duty
+ * alone.
  *
  * Every weight is a named, independently tunable field on FieldParams so
- * later steps add terms without restructuring this function.
+ * later steps (control panel) add sliders without restructuring this
+ * function.
  */
 export interface FieldParams {
   /** Southward drift speed (device px/sec) at the northernmost extent. */
   driftStrength: number;
   /** 0..1 — how much weaker the drift gets by the southernmost extent. */
   driftFalloff: number;
-  /** Distance from coast (device px) at which boundary steering starts. */
+  /**
+   * East-west fan strength in England, 0..1-ish — the spec's "drift
+   * spread". Zero at the horizontal centre line, growing with distance
+   * from it and with southness, so Scotland (narrow, north) keeps a tight
+   * drift while England (wide, south) visibly fans out rather than running
+   * down a single spine.
+   */
+  driftSpread: number;
+  /** Distance from coast (device px) at which boundary-steering rescue starts. */
   steerThreshold: number;
-  /** Blend weight of the tangential (coast-hugging) component, 0..1. */
+  /** Blend weight of the tangential (coast-hugging) rescue component, 0..1. */
   steerWeight: number;
-  /** Blend weight of the inward push component, 0..1. */
+  /** Blend weight of the inward push rescue component, 0..1. */
   pushWeight: number;
+  /**
+   * Whole-interior centering pull, 0..1-ish (step 2b). Unlike steering
+   * above (a rescue that only fires within steerThreshold of the coast),
+   * this applies everywhere, holding flow near the medial axis in narrow
+   * Scotland so it drifts off the coast before the rescue ever has to
+   * fire. Scaled by proximity-to-coast (relative to this world's actual
+   * measured max interior distance) and by southness, so it fades toward
+   * zero in wide, southern England — see `centerSouthFalloffExponent`.
+   */
+  centerWeight: number;
+  /** How aggressively the centering term above dies out toward the south. Higher = dies out faster. */
+  centerSouthFalloffExponent: number;
+  /**
+   * Coarse curl-noise octave's wavelength, expressed as cycles across GB's
+   * width — resolution-independent, unlike a raw pixel frequency, so the
+   * swirl feature count doesn't change with viewport size. ~3 cycles
+   * across the width (GB being ~2.4x taller than wide) gives roughly 6-10
+   * coherent swirl features across the whole frame, matching both
+   * `Art Pin.gif` and `Digital Art.jpg` (step2 plan, point 2d).
+   */
+  noiseScale: number;
+  /** How fast the noise field evolves over time. */
+  noiseSpeed: number;
+  /** Overall curl-noise strength, as a fraction of driftStrength. */
+  noiseWeight: number;
+  /**
+   * How much the base southward direction follows the world's geodesic
+   * "path-aware" field (geodesicField.ts) instead of assuming a straight
+   * line south, 0..1. At 0, behaves like a purely local field (today's
+   * "south is (0,1)"); at 1, the base direction always follows the
+   * geodesically shortest interior route to the south, bending around
+   * bays and necks it can't see through. Added specifically for the
+   * Scotland/England border trap (a genuine narrow waist a local field
+   * has no way to route around) — see world.ts's `geodesicField` docs.
+   */
+  pathWeight: number;
 }
 
 export const DEFAULT_FIELD_PARAMS: FieldParams = {
   driftStrength: 70,
-  driftFalloff: 0.6,
+  // Raised from step 1's 0.6: with the age-budget clamp and single-river
+  // funnel both being fixed elsewhere (particles.ts, this file's steering
+  // tie-break), drift needs to actually approach a stall in the far south
+  // for the spec's third death condition ("slowing to a stop") to mean
+  // anything — see particles.ts's driftScale-coupled speed.
+  driftFalloff: 0.85,
+  driftSpread: 0.5,
   // GB is narrow — no point on the mainland is more than ~130 device px
   // from a coast in this projection (matching the real "no point in
-  // Britain is more than 70 miles from the sea" fact). A steerThreshold
-  // anywhere near that figure means steering is active almost everywhere,
-  // fighting the drift constantly instead of only correcting near a real
-  // coastline. Kept well under the interior max so most of the interior
-  // sees pure drift.
-  steerThreshold: 45,
-  steerWeight: 0.7,
+  // Britain is more than 70 miles from the sea" fact). Brought down from
+  // step 1's 45, and further still after a live check in the browser: two
+  // of the seven sources are snapped-to-coast (world.ts's SNAP_BUFFER_PX
+  // is only 24px), and at 32 they were spawning already inside the
+  // rescue's threshold — every particle from those sources was grabbed by
+  // coast steering before it ever got a chance to establish a stable,
+  // drift-dominated heading, which read as a tangled clump hugging the
+  // spawn point rather than a journey south. Below the snap buffer so a
+  // freshly spawned particle starts in free-drift territory.
+  steerThreshold: 18,
+  steerWeight: 0.55,
   pushWeight: 0.55,
+  // A first harness pass at 0.35, then 0.12, still showed a live check
+  // producing a tight clump near the (coast-adjacent) sources rather than
+  // a journey south — the medial axis a centering pull gathers flow
+  // toward is, in a narrow country, itself close to a single line, and
+  // Scotland's central belt sits close to coastlines on both sides, so
+  // even a "weak" centering term was fighting the drift immediately at
+  // spawn. Down again to something that's genuinely a light touch.
+  centerWeight: 0.06,
+  centerSouthFalloffExponent: 2.5,
+  noiseScale: 3,
+  noiseSpeed: 0.05,
+  // Root cause of the near-source trapping problem (the dominant failure
+  // mode left after the border-region path-aware fix — median lifespan
+  // was still ~4.9s, ~94% "trapped", essentially unchanged from before
+  // that fix): decomposing the field at all seven sources showed curl
+  // noise's own magnitude (60-127 px/s there) *consistently exceeding*
+  // base drift's (47-60 px/s) — see Flow experiment step 2.txt's
+  // follow-up. Curl noise is isotropic by construction; once it's the
+  // *larger* term, the net direction stops being reliably southward at
+  // all, right where predictability matters most (freshly spawned
+  // particles, before they've gone anywhere). An earlier sweep (0.35 vs
+  // 0.8 vs 1.3) had found 1.3 best, but that was before the geodesic
+  // path-aware field existed — noise was doing double duty as the *only*
+  // path-diversifying mechanism then. With the geodesic field now doing
+  // that job correctly, re-sweeping on the current full system flipped
+  // the result entirely: 0.1-0.2 measured dramatically better on every
+  // metric than 1.3 (p50 lifespan 14s vs 4.9s, "trapped" share ~50% vs
+  // ~94%, share reaching 80% south ~29% vs ~0%, *and* better — lower —
+  // concentration despite less path diversification, since noise turns
+  // out to have been actively hurting concentration too, not helping it).
+  // 0.15 keeps enough real swirl for organic texture (the spec's "not a
+  // uniform particle system") without letting it swamp the drift.
+  noiseWeight: 0.15,
+  // High but not 1.0: the geodesic field should dominate "which way is
+  // south" (that's the whole point — it sees the coastline's true shape),
+  // but leaving a little pure-south blended in keeps the base direction
+  // from changing too sharply right at a coarse grid cell boundary.
+  pathWeight: 0.9,
 };
 
+/**
+ * Fixed-at-spawn per-particle personality (step 2c). The cheapest attack on
+ * "one attractor channel": even a fully deterministic field fans out under
+ * per-particle constants. Assigned once at respawn, persists for that
+ * particle's whole life — not resampled per frame.
+ */
+export interface ParticleTraits {
+  /**
+   * Small additive bias on the coast tie-break's (dot1 - dot2) in
+   * `sampleField` below. Breaks near-ties — the exact mechanism behind the
+   * single-river funnel on a south-facing coast (step2 plan, point 2) —
+   * without overriding coasts where the current heading clearly favours
+   * one tangent. A hard per-particle override would cause wrong-way turns
+   * on coasts approached obliquely; additive keeps that safe.
+   */
+  chirality: number;
+  /**
+   * Small constant world-space lateral drift, device px/sec. Persistent
+   * per particle, independent of heading — fans particles from the same
+   * source apart over their lifetime.
+   */
+  lateralBias: number;
+  /**
+   * Phase offset (seconds) into the fine curl-noise octave's time axis.
+   * The coarse octave is shared, unshifted, by every particle — it has to
+   * be, to read as one coherent field rather than each particle inventing
+   * its own weather. The fine octave carries this offset so a particle's
+   * texture/wobble decorrelates from its neighbours without disturbing the
+   * coarse structure everyone agrees on.
+   */
+  noisePhase: number;
+}
+
+export const DEFAULT_TRAITS: ParticleTraits = { chirality: 0, lateralBias: 0, noisePhase: 0 };
+
+const DEFAULT_NOISE_SEED = 1337;
+let defaultNoise3: Noise3 = buildPerlin3(DEFAULT_NOISE_SEED);
+
+/** Reseed the shared default curl-noise field — the control panel's "random seed" knob. */
+export function reseedNoise(seed: number): void {
+  defaultNoise3 = buildPerlin3(seed);
+}
+
+export interface FieldSample {
+  vx: number;
+  vy: number;
+  /**
+   * 0..1, this point's southward drift fraction (1 = full northern
+   * strength, 0 = fully decayed). Exposed so particles.ts can couple
+   * advection speed to it directly, rather than the field's total
+   * magnitude — total magnitude also rises near coasts from steering, and
+   * a "slowing down" cue has to come from the drift term specifically, not
+   * from the rescue getting louder.
+   */
+  driftScale: number;
+}
+
 /** 0 at the polygon's northernmost canvas y, 1 at its southernmost. */
-function southness(y: number, world: World): number {
+export function southness(y: number, world: World): number {
   const { top, bottom } = world.projection.bounds;
   if (bottom <= top) return 0;
   return Math.min(1, Math.max(0, (y - top) / (bottom - top)));
 }
 
 /**
- * Sample the field's desired velocity direction (unit-ish vector, not yet
- * scaled by a particle's own speed) at a canvas point, given the
- * particle's current heading (used to pick a steering tangent that doesn't
- * flip direction frame to frame).
+ * Sample the field's desired velocity (unit-ish direction plus a
+ * driftScale readout) at a canvas point, given the particle's current
+ * heading (to pick a steering tangent that doesn't flip frame to frame)
+ * and its persistent traits (chirality, lateral bias, noise phase).
+ *
+ * One `distanceField.sample` call is reused for both the centering term
+ * and the boundary-steering rescue — the spec's "one field lookup per
+ * particle" performance target holds even though this function now does
+ * more with that one lookup. Curl noise adds 8 raw noise evaluations
+ * (2 octaves x central-difference in x and y); at the spec's target
+ * particle counts (3-8k) that's direct-compute territory, not a case for
+ * an extra precomputed grid layer — see Flow_Experiment_Spec.md's
+ * "Performance target".
  */
 export function sampleField(
   pos: Vec2,
   heading: Vec2,
   world: World,
   params: FieldParams,
-): Vec2 {
+  time = 0,
+  traits: ParticleTraits = DEFAULT_TRAITS,
+  noise3: Noise3 = defaultNoise3,
+): FieldSample {
   const [x, y] = pos;
+  const { bounds } = world.projection;
   const s = southness(y, world);
   const driftScale = 1 - s * params.driftFalloff;
 
   let vx = 0;
   let vy = params.driftStrength * driftScale;
 
+  // --- Path-aware base direction: blend the naive straight-south
+  // direction with the world's geodesic "which way is actually south"
+  // field (world.ts's geodesicField). At pathWeight=1 this fully replaces
+  // (0,1) with the geodesically-shortest interior direction; at 0 it's
+  // pure straight-line south, the pre-fix behaviour. Everything below
+  // (fan, centering, noise, steering) still layers on top of this base
+  // direction exactly as before — only what "south" means has changed.
+  if (params.pathWeight > 0) {
+    const path = world.geodesicField.sample(x, y);
+    if (path.dist !== Infinity && (path.gx !== 0 || path.gy !== 0)) {
+      const pathVx = path.gx * params.driftStrength * driftScale;
+      const pathVy = path.gy * params.driftStrength * driftScale;
+      vx = vx * (1 - params.pathWeight) + pathVx * params.pathWeight;
+      vy = vy * (1 - params.pathWeight) + pathVy * params.pathWeight;
+    }
+  }
+
+  // --- East-west fan (2e): spread flow across England instead of running
+  // down a single spine. Zero at the horizontal centre, growing with
+  // distance from it and with southness, so Scotland stays a tight drift
+  // and England's flow visibly fans out.
+  const halfWidth = (bounds.right - bounds.left) / 2 || 1;
+  const centerX = (bounds.left + bounds.right) / 2;
+  const lateralPos = Math.min(1, Math.max(-1, (x - centerX) / halfWidth));
+  vx += params.driftSpread * s * lateralPos * params.driftStrength;
+
   const { dist, gx, gy } = world.distanceField.sample(x, y);
 
+  // --- Whole-interior centering (2b): holds flow near the medial axis
+  // where GB is narrow (most of Scotland), fading toward zero in the wide
+  // south so it doesn't recreate a single-spine funnel down England.
+  // Applied everywhere (not gated by steerThreshold) so it keeps flow off
+  // the coast *before* the rescue below has to fire.
+  if (world.maxInteriorDist > 1e-3 && params.centerWeight > 0) {
+    const proximityToCoast = Math.min(1, Math.max(0, 1 - dist / world.maxInteriorDist));
+    const southFalloff = Math.pow(Math.max(0, 1 - s), params.centerSouthFalloffExponent);
+    const centerStrength = params.centerWeight * proximityToCoast * southFalloff * params.driftStrength;
+    vx += gx * centerStrength;
+    vy += gy * centerStrength;
+  }
+
+  // --- Curl noise (2d): divergence-free by construction (see noise.ts),
+  // so it adds swirl without creating sources/sinks. Coarse octave is
+  // shared by every particle at a wavelength ~1/3 of GB's width; fine
+  // octave carries the particle's own noisePhase for per-particle texture.
+  if (params.noiseWeight > 0) {
+    const width = bounds.right - bounds.left || 1;
+    const coarseFreq = params.noiseScale / width;
+    const t = time * params.noiseSpeed;
+    const NOISE_EPS = 1e-3; // finite-difference step, in noise-space (post-frequency-scale) units
+    const [ncx, ncy] = curl2D(noise3, x * coarseFreq, y * coarseFreq, t, NOISE_EPS);
+    vx += ncx * params.noiseWeight * params.driftStrength;
+    vy += ncy * params.noiseWeight * params.driftStrength;
+
+    const FINE_FREQ_RATIO = 3.5;
+    const FINE_WEIGHT_RATIO = 0.35;
+    const [nfx, nfy] = curl2D(
+      noise3,
+      x * coarseFreq * FINE_FREQ_RATIO,
+      y * coarseFreq * FINE_FREQ_RATIO,
+      t * 1.6 + traits.noisePhase,
+      NOISE_EPS,
+    );
+    vx += nfx * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+    vy += nfy * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+  }
+
+  // --- Per-particle lateral bias (2c): fixed-at-spawn personality, so even
+  // a fully deterministic field fans out under per-particle constants.
+  vx += traits.lateralBias;
+
+  // --- Boundary steering (rescue near the coast).
   if (dist < params.steerThreshold) {
     // Gradient points from coast toward interior (inward). Tangent is
     // perpendicular; two candidates, pick whichever keeps the current
@@ -77,7 +313,10 @@ export function sampleField(
     const t2y = -gx;
     const [hx, hy] = heading;
     const dot1 = t1x * hx + t1y * hy;
-    const dot2 = t2x * hx + t2y * hy;
+    // 2c: additive chirality bias, not an absolute override — breaks
+    // near-ties (the single-river funnel) without flipping coasts the
+    // heading clearly favours one way on.
+    const dot2 = t2x * hx + t2y * hy + traits.chirality;
     const [tx, ty] = dot1 >= dot2 ? [t1x, t1y] : [t2x, t2y];
 
     // Stronger the closer to (or past) the coast; a particle that's
@@ -92,5 +331,5 @@ export function sampleField(
     vy += gy * pushStrength * params.pushWeight * proximity;
   }
 
-  return [vx, vy];
+  return { vx, vy, driftScale };
 }

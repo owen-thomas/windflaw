@@ -1,23 +1,22 @@
 /**
- * Boot for the /flow skeleton (build step 1). Crude particles, one field
- * (southward drift + boundary steering only), debug overlays keyed to
- * judge containment. Art pass (palettes, trail texture, curl noise, source
- * outflow, control panel) is later steps — see Flow_Experiment_Spec.md.
+ * Boot for the /flow page. Step 3 (art pass) added palettes, per-source/
+ * per-particle stroke texture, and the dark/light toggle — see
+ * Flow_Experiment_Spec.md's "Art pass" and palette.ts's docs. Control
+ * panel + presets (step 4) are still to come.
  */
 
 import { DEFAULT_FIELD_PARAMS } from './field';
 import { ParticleSystem, segmentLeavesMask } from './particles';
 import { renderDebugOverlay, type DebugLayer } from './debug';
 import { buildWorld, GB_RING, type World } from './world';
+import { DARK_PALETTE, PALETTES, type Palette, type PaletteName } from './palette';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#flow-canvas')!;
 const ctx = canvas.getContext('2d')!;
 
 const PARTICLE_COUNT = 3000;
-const WASH_ALPHA = 0.08; // fade-to-background wash; trail length = inverse of this
-const BG_COLOR = '5, 6, 8';
-const STROKE_COLOR = 'rgba(220, 235, 245, 0.55)';
-const STROKE_WIDTH = 1;
+
+let palette: Palette = DARK_PALETTE;
 
 let world: World;
 let particles: ParticleSystem;
@@ -46,11 +45,25 @@ function rebuild() {
     particles = new ParticleSystem(world, PARTICLE_COUNT);
   }
   debugCanvas = null; // rebuilt lazily on next draw if debug is visible
+  paintOpaque();
+}
 
-  // Opaque paint on rebuild so the wash-fade doesn't reveal stale pixels
-  // from the previous canvas size.
-  ctx.fillStyle = `rgb(${BG_COLOR})`;
+/**
+ * Full opaque repaint in the current palette's background — used on
+ * rebuild (a resize can change canvas dimensions, leaving stale pixels
+ * the wash-fade alone wouldn't fully cover) and on a palette switch (the
+ * wash alpha is far too low to clear the *other* palette's colours in one
+ * frame; without this, switching dark->light would show old dark trails
+ * fading out through a wrong-coloured wash for several seconds).
+ */
+function paintOpaque() {
+  ctx.fillStyle = `rgb(${palette.backgroundRGB})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function setPalette(name: PaletteName) {
+  palette = PALETTES[name];
+  paintOpaque();
 }
 
 let resizeTimer: number | undefined;
@@ -70,6 +83,8 @@ window.addEventListener('keydown', (e) => {
     toggleLayer('sdf');
   } else if (e.key === '4') {
     toggleLayer('gradient');
+  } else if (e.key === 'p') {
+    setPalette(palette.name === 'dark' ? 'light' : 'dark');
   }
 });
 
@@ -89,11 +104,11 @@ function frame(now: number) {
   const dt = Math.min(0.05, (now - lastTime) / 1000); // clamp to avoid a huge step after a tab switch
   lastTime = now;
 
-  ctx.fillStyle = `rgba(${BG_COLOR}, ${WASH_ALPHA})`;
+  ctx.fillStyle = `rgba(${palette.backgroundRGB}, ${palette.washAlpha})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   particles.step(dt, DEFAULT_FIELD_PARAMS);
-  particles.render(ctx, STROKE_COLOR, STROKE_WIDTH);
+  particles.render(ctx, palette);
 
   if (debugVisible) {
     if (!debugCanvas) {
@@ -111,5 +126,7 @@ requestAnimationFrame(frame);
 (window as unknown as { __flow: unknown }).__flow = {
   getWorld: () => world,
   getParticles: () => particles,
+  getPalette: () => palette,
+  setPalette,
   segmentLeavesMask,
 };

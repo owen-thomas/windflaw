@@ -1,5 +1,6 @@
 import gbMainland from './data/gb-mainland.json';
 import { buildDistanceField, type DistanceField } from './distanceField';
+import { buildGeodesicField, type GeodesicField } from './geodesicField';
 import { buildRasterMask, type RasterMask } from './mask';
 import { buildProjection, type Projection } from './projection';
 import { originOf, SOURCES } from './sources';
@@ -24,6 +25,27 @@ export interface World {
   mask: RasterMask;
   distanceField: DistanceField;
   sources: ResolvedSource[];
+  /**
+   * The largest signed distance value anywhere on the mainland — i.e. the
+   * single most-inland point's distance to the coast, in device px.
+   * Measured directly from this world's distance field rather than
+   * hardcoded, so it stays correct across viewport sizes and any future
+   * coastline edits. Used by field.ts to normalise the whole-interior
+   * centering term (step 2b) against an actual, current figure instead of
+   * an eyeballed constant.
+   */
+  maxInteriorDist: number;
+  /**
+   * Path-aware "which way is actually south" field (see geodesicField.ts) —
+   * a multi-source BFS from the southern goal band, giving every interior
+   * cell its geodesic distance-to-south and gradient. Tried after both
+   * field-parameter retuning and coastline-data pruning failed to move a
+   * death hotspot at the Scotland/England border: that border is a genuine
+   * narrow waist, and a purely local field (straight-line south + nearby-
+   * coast steering) has no way to "see" it's approaching a re-entrant bay
+   * rather than open coastline.
+   */
+  geodesicField: GeodesicField;
 }
 
 /**
@@ -80,6 +102,7 @@ export function buildWorld(viewportWidth: number, viewportHeight: number): World
   const projection = buildProjection(GB_RING, viewportWidth, viewportHeight);
   const mask = buildRasterMask(GB_RING, projection, viewportWidth, viewportHeight);
   const distanceField = buildDistanceField(mask);
+  const geodesicField = buildGeodesicField(mask);
 
   const sources: ResolvedSource[] = SOURCES.map((source) => {
     const origin = originOf(source);
@@ -98,5 +121,11 @@ export function buildWorld(viewportWidth: number, viewportHeight: number): World
     return { source, position: snapped, wasSnapped: true };
   });
 
-  return { projection, mask, distanceField, sources };
+  let maxInteriorDist = 0;
+  for (let i = 0; i < distanceField.distance.length; i++) {
+    const d = distanceField.distance[i];
+    if (d > maxInteriorDist) maxInteriorDist = d;
+  }
+
+  return { projection, mask, distanceField, sources, maxInteriorDist, geodesicField };
 }

@@ -23,18 +23,23 @@ export interface DistanceField {
   sample(x: number, y: number): { dist: number; gx: number; gy: number };
 }
 
-const DEFAULT_CELL_SIZE = 6; // device px; spec suggests 4-8px grid spacing
+export const DEFAULT_CELL_SIZE = 6; // device px; spec suggests 4-8px grid spacing
 
-export function buildDistanceField(
+/**
+ * Downsample a fine raster mask to a coarse grid (nearest-pixel sampling).
+ * Shared by `buildDistanceField` below and `buildGeodesicField`
+ * (geodesicField.ts), which both need the same "is this coarse cell
+ * inside GB" grid at the same resolution — factored out rather than
+ * duplicated so the two fields can never quietly drift onto different
+ * grids of the same mask.
+ */
+export function downsampleMaskToCoarseGrid(
   mask: RasterMask,
-  cellSize: number = DEFAULT_CELL_SIZE,
-): DistanceField {
+  cellSize: number,
+): { gridWidth: number; gridHeight: number; coarseInside: Uint8Array } {
   const gridWidth = Math.ceil(mask.width / cellSize);
   const gridHeight = Math.ceil(mask.height / cellSize);
-  const n = gridWidth * gridHeight;
-
-  // Downsample the raster mask to the coarse grid (nearest sampling).
-  const coarseInside = new Uint8Array(n);
+  const coarseInside = new Uint8Array(gridWidth * gridHeight);
   for (let gy = 0; gy < gridHeight; gy++) {
     const py = Math.min(mask.height - 1, gy * cellSize);
     for (let gx = 0; gx < gridWidth; gx++) {
@@ -42,6 +47,15 @@ export function buildDistanceField(
       coarseInside[gy * gridWidth + gx] = mask.data[py * mask.width + px];
     }
   }
+  return { gridWidth, gridHeight, coarseInside };
+}
+
+export function buildDistanceField(
+  mask: RasterMask,
+  cellSize: number = DEFAULT_CELL_SIZE,
+): DistanceField {
+  const { gridWidth, gridHeight, coarseInside } = downsampleMaskToCoarseGrid(mask, cellSize);
+  const n = gridWidth * gridHeight;
 
   // Boundary cells (source cells for the EDT): coarse cells whose 4-neighbourhood
   // contains both inside and outside cells.

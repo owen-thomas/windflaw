@@ -171,12 +171,27 @@ export interface FieldParams {
 
 export const DEFAULT_FIELD_PARAMS: FieldParams = {
   driftStrength: 70,
-  // Raised from step 1's 0.6: with the age-budget clamp and single-river
-  // funnel both being fixed elsewhere (particles.ts, this file's steering
-  // tie-break), drift needs to actually approach a stall in the far south
-  // for the spec's third death condition ("slowing to a stop") to mean
-  // anything — see particles.ts's driftScale-coupled speed.
-  driftFalloff: 0.85,
+  // Raised from step 1's 0.6 to 0.85 landing step 2: with the age-budget
+  // clamp and single-river funnel both being fixed elsewhere (particles.ts,
+  // this file's steering tie-break), drift needs to actually approach a
+  // stall in the far south for the spec's third death condition ("slowing
+  // to a stop") to mean anything — see particles.ts's driftScale-coupled
+  // speed. Brought back down 0.85 -> 0.55 in 2j's retune: with 2f-2i now
+  // doing the fan-out/spacing work, the mass of the far south (East
+  // Anglia, the South West, the South East) was still barely reached —
+  // share of particle-lives ever getting >=80% south was ~1.3%. A harness
+  // sweep found driftFalloff, not driftStrength, is the right lever: it
+  // trades almost nothing (interior coverage 88.2% -> 87.5%,
+  // concentration flat at ~39.5%) for the far south actually being
+  // reachable (>=80% south 1.3% -> 4.0%, direction coherence 0.447 ->
+  // 0.511) — raising driftStrength instead moved the same reach numbers
+  // less, while making paths straighter and *hurting* coverage/
+  // concentration in the process (particles that don't slow down don't
+  // linger to be pushed around by 2g/2h either). Particles still
+  // genuinely stall near the southern edge — driftScale only ever reaches
+  // zero exactly at the polygon's southernmost point — so the spec's third
+  // death condition still means something at this value.
+  driftFalloff: 0.55,
   driftSpread: 0.5,
   // GB is narrow — no point on the mainland is more than ~130 device px
   // from a coast in this projection (matching the real "no point in
@@ -339,6 +354,17 @@ let defaultNoise3: Noise3 = buildPerlin3(DEFAULT_NOISE_SEED);
 /** Reseed the shared default curl-noise field — the control panel's "random seed" knob. */
 export function reseedNoise(seed: number): void {
   defaultNoise3 = buildPerlin3(seed);
+}
+
+/**
+ * The shared default noise field sampleField itself falls back to when no
+ * explicit `noise3` is passed. Exposed read-only so external analysis code
+ * (2j's flow-harness.ts spacing-quality report) can classify points by the
+ * *same* coarse noise phase spacingWaveAmplitude modulates against,
+ * without duplicating or re-seeding it.
+ */
+export function getDefaultNoise3(): Noise3 {
+  return defaultNoise3;
 }
 
 export interface FieldSample {

@@ -8,27 +8,40 @@
  * to a pure-JS scanline fill when neither `OffscreenCanvas` nor `document`
  * exists (see src/flow/mask.ts), so the whole simulation runs headless.
  *
- * A lifespan histogram alone can't tell "nothing gets far" apart from
- * "everything that gets far takes the same road" — that was the original
- * misdiagnosis this plan is fixing. So this reports, for a run of N
- * simulated seconds at a given particle count:
+ * 2j of `Flow experiment fan-out.txt` repoints this report's priority.
+ * step 2's framing of success was transport ("surplus visibly travels
+ * Scotland -> England", measured as throughput-by-latitude) — that's what
+ * produced the funnel 2f-2i exist to undo. The metrics below are now
+ * ordered PRIMARY (what 2f-2i actually target) then GUARD-RAILS (what
+ * step 2 targeted, kept as sanity checks, not goals) then CORRECTNESS
+ * (must hold regardless of any tuning):
  *
- *  - death-cause breakdown (age-out / strike-limit / stall) + lifespan distribution
- *  - throughput by latitude band: fraction of particle-lives that ever
- *    reached each tenth of GB's north-south extent (proves broad transport,
- *    not just a thin lucky tail)
+ *  PRIMARY — "does it fan out and fill the space, placed rather than piled":
  *  - interior coverage + concentration on a coarse visit grid (a "river" is
  *    a coverage number near the floor and a concentration number near the
- *    ceiling; both should move as 2a-2e land)
- *  - strike rate (the step2 plan feedback's replacement for "escape rate",
- *    which goes trivially to zero once grazes are rescued instead of killed)
- *  - a hard containment-escape assertion (must stay exactly zero, always —
- *    this is the one number that's a correctness check, not a health metric)
+ *    ceiling)
+ *  - spacing quality: per-cell density distribution off 2g's own occupancy
+ *    grid (low variance = evenly placed) and nearest-neighbour distance
+ *    between particles at the final frame, plus the same population split
+ *    by 2h's coarse noise phase (should separate into two different means
+ *    — "gathered" cells denser than "loosened" ones — when
+ *    spacingWaveAmplitude is doing its job; collapse to one when it isn't)
+ *
+ *  GUARD-RAILS — sanity checks that "overall southward journey" survived
+ *  2f-2i's rework, not targets to maximise:
+ *  - direction coherence: mean southward heading component (particles.hy)
+ *  - throughput by latitude band + death-cause breakdown + lifespan
+ *    distribution (step 2's old headline metrics)
+ *
+ *  CORRECTNESS — must hold no matter what:
+ *  - a hard containment-escape assertion (must stay exactly zero, always)
+ *  - strike rate (a steering-health signal, not a hard invariant)
  *  - frame cost at the given particle count
  *
  * These are a steering aid, not the target — the final call on "does it
- * read as a broad tapestry" is visual, against Art Pin.gif / Digital
- * Art.jpg — but they're what makes that checkable instead of arguable.
+ * read as a broad tapestry" is visual, against the reference images named
+ * in `Flow experiment fan-out.txt` — but they're what makes that checkable
+ * instead of arguable.
  *
  * Run with:
  *   npx tsx scripts/flow-harness.ts [--particles=3000] [--seconds=60] [--legacy]
@@ -52,7 +65,7 @@
 import { performance } from 'node:perf_hooks';
 import { buildWorld } from '../src/flow/world';
 import { ParticleSystem, type DeathCause } from '../src/flow/particles';
-import { DEFAULT_FIELD_PARAMS, type FieldParams, southness } from '../src/flow/field';
+import { DEFAULT_FIELD_PARAMS, getDefaultNoise3, type FieldParams, southness } from '../src/flow/field';
 
 interface Args {
   particles: number;
@@ -108,6 +121,13 @@ function percentile(sortedAscending: number[], p: number): number {
   if (sortedAscending.length === 0) return 0;
   const idx = Math.min(sortedAscending.length - 1, Math.floor(p * sortedAscending.length));
   return sortedAscending[idx];
+}
+
+function meanAndStddev(values: number[]): { mean: number; stddev: number } {
+  if (values.length === 0) return { mean: 0, stddev: 0 };
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+  return { mean, stddev: Math.sqrt(variance) };
 }
 
 function run(args: Args) {
@@ -167,6 +187,11 @@ function run(args: Args) {
   const steps = Math.round(args.seconds / DT);
   const frameCostsMsAscending: number[] = [];
   let escapeCount = 0; // hard invariant: must stay exactly zero
+  // Guard-rail (2j): mean southward heading component across every
+  // particle-frame in the run — a single running sum rather than a stored
+  // per-frame series, since only the aggregate mean is reported.
+  let headingSouthSum = 0;
+  let headingSouthCount = 0;
 
   for (let f = 0; f < steps; f++) {
     const t0 = performance.now();
@@ -184,6 +209,9 @@ function run(args: Args) {
       const gx = Math.min(gridWidth - 1, Math.max(0, Math.floor(x / cellSize)));
       const gy = Math.min(gridHeight - 1, Math.max(0, Math.floor(y / cellSize)));
       visits[gy * gridWidth + gx]++;
+
+      headingSouthSum += particles.hy[i];
+      headingSouthCount++;
     }
   }
   frameCostsMsAscending.sort((a, b) => a - b);
@@ -200,10 +228,106 @@ function run(args: Args) {
       `conformEnabled=${args.conformEnabled}, ${args.width}x${args.height} ===\n`,
   );
 
+  // ===================== PRIMARY: fan-out & spacing =====================
+  console.log('--- PRIMARY: fan-out & spacing ---');
+
+  let visitedInteriorCells = 0;
+  let totalVisits = 0;
+  const visitCountsDescending: number[] = [];
+  for (let c = 0; c < visits.length; c++) {
+    if (!isInteriorCell[c]) continue;
+    totalVisits += visits[c];
+    if (visits[c] > 0) visitedInteriorCells++;
+    visitCountsDescending.push(visits[c]);
+  }
+  visitCountsDescending.sort((a, b) => b - a);
+  const topCellCount = Math.max(1, Math.ceil(visitCountsDescending.length * TOP_FRACTION_FOR_CONCENTRATION));
+  const topVisits = visitCountsDescending.slice(0, topCellCount).reduce((a, b) => a + b, 0);
+
+  console.log('\nInterior coverage + concentration:');
+  console.log(
+    `  coverage: ${((visitedInteriorCells / interiorCellCount) * 100).toFixed(1)}% of interior cells ever visited`,
+  );
+  console.log(
+    `  concentration: top ${(TOP_FRACTION_FOR_CONCENTRATION * 100).toFixed(0)}% of visited-grid cells hold ` +
+      `${totalVisits > 0 ? ((topVisits / totalVisits) * 100).toFixed(1) : '0.0'}% of all visits`,
+  );
+
+  // Spacing quality (2j): "how they're placed relative to each other" as a
+  // statistic, off 2g's own occupancy grid (not the coarser visit-count
+  // grid above) — the same signal the density steering term itself reads.
+  console.log('\nSpacing quality:');
+  const density = particles.densityField;
+  const cellDensities: number[] = [];
+  for (let c = 0; c < density.occupancy.length; c++) {
+    if (density.isInteriorCell[c]) cellDensities.push(density.occupancy[c]);
+  }
+  const { mean: densityMean, stddev: densityStddev } = meanAndStddev(cellDensities);
+  console.log(
+    `  per-cell density (${density.cellSize}px grid, final frame): ` +
+      `mean=${densityMean.toFixed(3)}  stddev=${densityStddev.toFixed(3)}  ` +
+      `CV=${densityMean > 0 ? (densityStddev / densityMean).toFixed(2) : 'n/a'} ` +
+      '(lower = more evenly placed)',
+  );
+
+  // Same population, split by 2h's coarse noise phase — should separate
+  // into two different means (gathered denser than loosened) when
+  // spacingWaveAmplitude is doing its job, and collapse toward one mean
+  // when it isn't (spacingWaveAmplitude=0, or the wave washing out).
+  const noise3 = getDefaultNoise3();
+  const { gridWidth: dGridWidth, cellSize: dCellSize } = density;
+  const waveWidth = world.projection.bounds.right - world.projection.bounds.left || 1;
+  const coarseFreq = fieldParams.noiseScale / waveWidth;
+  const waveT = args.seconds * fieldParams.noiseSpeed; // sim ends at ~args.seconds
+  const gatheredDensities: number[] = [];
+  const loosenedDensities: number[] = [];
+  for (let c = 0; c < density.occupancy.length; c++) {
+    if (!density.isInteriorCell[c]) continue;
+    const cx = (c % dGridWidth) * dCellSize;
+    const cy = Math.floor(c / dGridWidth) * dCellSize;
+    const wave = noise3(cx * coarseFreq, cy * coarseFreq, waveT);
+    (wave >= 0 ? gatheredDensities : loosenedDensities).push(density.occupancy[c]);
+  }
+  const gathered = meanAndStddev(gatheredDensities);
+  const loosened = meanAndStddev(loosenedDensities);
+  console.log(
+    `  wave-phase split: gathered-cells mean=${gathered.mean.toFixed(3)}  ` +
+      `loosened-cells mean=${loosened.mean.toFixed(3)}  ` +
+      `ratio=${loosened.mean > 0 ? (gathered.mean / loosened.mean).toFixed(2) : 'n/a'} ` +
+      '(> 1 means the wave is doing something; ~1 means it is not)',
+  );
+
+  // Nearest-neighbour distance between particles at the final frame —
+  // brute-force O(n^2), fine as a one-off end-of-run measurement.
+  const nnDistances: number[] = [];
+  for (let i = 0; i < args.particles; i++) {
+    let best = Infinity;
+    for (let j = 0; j < args.particles; j++) {
+      if (i === j) continue;
+      const d = Math.hypot(particles.x[i] - particles.x[j], particles.y[i] - particles.y[j]);
+      if (d < best) best = d;
+    }
+    if (best !== Infinity) nnDistances.push(best);
+  }
+  nnDistances.sort((a, b) => a - b);
+  console.log(
+    `  nearest-neighbour distance (final frame, device px): ` +
+      `p10=${percentile(nnDistances, 0.1).toFixed(1)}  p50=${percentile(nnDistances, 0.5).toFixed(1)}  ` +
+      `p90=${percentile(nnDistances, 0.9).toFixed(1)}`,
+  );
+
+  // ===================== GUARD-RAILS (not targets) =====================
+  console.log('\n--- GUARD-RAILS: overall southward journey (sanity checks, not targets) ---');
+
+  console.log(
+    `\nDirection coherence: mean southward heading component = ` +
+      `${(headingSouthSum / headingSouthCount).toFixed(3)} (1 = due south, 0 = no net southward bias)`,
+  );
+
   if (totalDeaths === 0) {
-    console.log('No deaths observed in this run — increase --seconds.');
+    console.log('\nNo deaths observed in this run — increase --seconds.');
   } else {
-    console.log(`Death causes (of ${totalDeaths} total):`);
+    console.log(`\nDeath causes (of ${totalDeaths} total):`);
     for (const cause of ['age', 'strike', 'stall', 'trapped', 'density'] as const) {
       const n = deathCounts[cause];
       console.log(
@@ -233,27 +357,8 @@ function run(args: Args) {
     }
   }
 
-  let visitedInteriorCells = 0;
-  let totalVisits = 0;
-  const visitCountsDescending: number[] = [];
-  for (let c = 0; c < visits.length; c++) {
-    if (!isInteriorCell[c]) continue;
-    totalVisits += visits[c];
-    if (visits[c] > 0) visitedInteriorCells++;
-    visitCountsDescending.push(visits[c]);
-  }
-  visitCountsDescending.sort((a, b) => b - a);
-  const topCellCount = Math.max(1, Math.ceil(visitCountsDescending.length * TOP_FRACTION_FOR_CONCENTRATION));
-  const topVisits = visitCountsDescending.slice(0, topCellCount).reduce((a, b) => a + b, 0);
-
-  console.log('\nInterior coverage + concentration:');
-  console.log(
-    `  coverage: ${((visitedInteriorCells / interiorCellCount) * 100).toFixed(1)}% of interior cells ever visited`,
-  );
-  console.log(
-    `  concentration: top ${(TOP_FRACTION_FOR_CONCENTRATION * 100).toFixed(0)}% of visited-grid cells hold ` +
-      `${totalVisits > 0 ? ((topVisits / totalVisits) * 100).toFixed(1) : '0.0'}% of all visits`,
-  );
+  // ===================== CORRECTNESS =====================
+  console.log('\n--- CORRECTNESS ---');
 
   console.log('\nStrike rate + containment:');
   console.log(

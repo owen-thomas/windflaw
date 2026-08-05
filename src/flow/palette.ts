@@ -52,10 +52,24 @@ export const DARK_PALETTE: Palette = {
 // Sampled from reference/Digital Art.jpg: background (233,229,220) ->
 // HSL(42, 23%, 89%); most-saturated stroke pixel found (8,87,205) ->
 // HSL(216, 92%, 42%).
+// 2j retune: washAlpha 0.32 -> 0.16. At 0.32 (step 3's figure, tuned
+// against a 3000-particle default) the equilibrium tapestry read as
+// scattered dots rather than Digital Art.jpg's dense, bold dash weave —
+// two changes since compound against it: 2g's default particle count
+// dropped to 1400 (less raw ink available at any instant), and washAlpha
+// alone sets how many frames' worth of "ink" stays visible before the
+// wash erases it. Per the step2 feedback this resolves through, dash
+// length is purely this wash knob, not a simulation change — lower
+// washAlpha keeps more recent segments visible at once, both lengthening
+// individual dashes and increasing how many overlap, which is what
+// "denser tapestry" actually means for a fade-trail renderer. Stayed
+// comfortably above the dark palette's 0.07 (which reads as long comet
+// trails) — the light palette should still read as dashes, just longer
+// and more numerous ones than 0.32 gave.
 export const LIGHT_PALETTE: Palette = {
   name: 'light',
   backgroundRGB: '233, 229, 220',
-  washAlpha: 0.32,
+  washAlpha: 0.13,
   baseStrokeWidth: 2.2,
   baseStrokeAlpha: 0.9,
   baseHue: 216,

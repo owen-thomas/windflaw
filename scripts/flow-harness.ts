@@ -32,13 +32,15 @@
  *
  * Run with:
  *   npx tsx scripts/flow-harness.ts [--particles=3000] [--seconds=60] [--legacy]
- *     [--baseFieldMode=divergent|south]
+ *     [--baseFieldMode=divergent|south] [--noDensity]
  *
  * --legacy reproduces step 1's fixed 4-9s age-budget ceiling (only), for a
  * true before/after comparison of just that fix in isolation from 2a-2e.
  * --baseFieldMode=south reproduces the step-2 convergent-to-a-southern-goal
  * field (2f's diagnosed funnel cause) for a before/after of 2f in isolation
  * from 2g-2j; default 'divergent' is the fan-out doc's fix.
+ * --noDensity disables 2g's density-aware spacing (steering term +
+ * coverage recycling) for a before/after of 2g in isolation.
  */
 
 import { performance } from 'node:perf_hooks';
@@ -54,6 +56,8 @@ interface Args {
   height: number;
   /** 2f A/B: --baseFieldMode=south reproduces the step-2 funnel field for comparison. */
   baseFieldMode: FieldParams['baseFieldMode'];
+  /** 2g A/B: --noDensity disables density-aware spacing (steering term + coverage recycling) for comparison. */
+  densityEnabled: boolean;
 }
 
 function parseArgs(): Args {
@@ -75,6 +79,7 @@ function parseArgs(): Args {
     width: Number(get('width', '2400')),
     height: Number(get('height', '1600')),
     baseFieldMode,
+    densityEnabled: !argv.includes('--noDensity'),
   };
 }
 
@@ -91,9 +96,19 @@ function percentile(sortedAscending: number[], p: number): number {
 
 function run(args: Args) {
   const world = buildWorld(args.width, args.height);
-  const fieldParams: FieldParams = { ...DEFAULT_FIELD_PARAMS, baseFieldMode: args.baseFieldMode };
+  const fieldParams: FieldParams = {
+    ...DEFAULT_FIELD_PARAMS,
+    baseFieldMode: args.baseFieldMode,
+    densityEnabled: args.densityEnabled,
+  };
 
-  const deathCounts: Record<DeathCause, number> = { age: 0, strike: 0, stall: 0, trapped: 0 };
+  const deathCounts: Record<DeathCause, number> = {
+    age: 0,
+    strike: 0,
+    stall: 0,
+    trapped: 0,
+    density: 0,
+  };
   const lifespans: number[] = [];
   // How far south (0..1 southness) each particle-life ever got — one
   // recorded value per death, not per frame.
@@ -156,20 +171,21 @@ function run(args: Args) {
   frameCostsMsAscending.sort((a, b) => a - b);
 
   // --- Report -----------------------------------------------------------
-  const totalDeaths = deathCounts.age + deathCounts.strike + deathCounts.stall + deathCounts.trapped;
+  const totalDeaths =
+    deathCounts.age + deathCounts.strike + deathCounts.stall + deathCounts.trapped + deathCounts.density;
   const totalParticleSeconds = args.particles * args.seconds;
 
   console.log(
     `\n=== flow-harness: ${args.particles} particles, ${args.seconds}s sim, ` +
       `ageBudgetMode=${args.ageBudgetMode}, baseFieldMode=${args.baseFieldMode}, ` +
-      `${args.width}x${args.height} ===\n`,
+      `densityEnabled=${args.densityEnabled}, ${args.width}x${args.height} ===\n`,
   );
 
   if (totalDeaths === 0) {
     console.log('No deaths observed in this run — increase --seconds.');
   } else {
     console.log(`Death causes (of ${totalDeaths} total):`);
-    for (const cause of ['age', 'strike', 'stall', 'trapped'] as const) {
+    for (const cause of ['age', 'strike', 'stall', 'trapped', 'density'] as const) {
       const n = deathCounts[cause];
       console.log(
         `  ${cause.padEnd(8)} ${n.toString().padStart(8)}  (${((n / totalDeaths) * 100).toFixed(1)}%)`,

@@ -1,3 +1,4 @@
+import type { DensityField } from './densityField';
 import { buildPerlin3, curl2D, type Noise3 } from './noise';
 import type { World } from './world';
 import type { Vec2 } from './types';
@@ -85,6 +86,41 @@ export interface FieldParams {
    *   each other (browser: 'f' key toggles it; harness: --baseFieldMode).
    */
   baseFieldMode: 'divergent' | 'south';
+  /**
+   * Master toggle for 2g's density-aware spacing mechanism (the steering
+   * term below, plus particles.ts's coverage-recycling death cause). Off
+   * skips the per-frame occupancy decay/gradient recompute entirely, not
+   * just the steering term — a clean, zero-cost A/B (browser: 'g' key;
+   * harness: --noDensity).
+   */
+  densityEnabled: boolean;
+  /**
+   * Density steering strength, as a fraction of driftStrength per unit of
+   * "local density over target" (see densityTargetMultiplier). This is
+   * what "how they're placed relative to each other" means mechanically:
+   * a capped push down the local occupancy gradient (densityField.ts),
+   * away from wherever flow has recently been crowded, applied only where
+   * it's actually crowded — not a blanket repulsion that would just widen
+   * every trail uniformly.
+   */
+  densityWeight: number;
+  /** Density steering only fires where local density exceeds this multiple of the grid's current mean interior density — "target spacing". Scales with particle count/deposit rate automatically since it's relative, not an absolute occupancy constant. */
+  densityTargetMultiplier: number;
+  /** Absolute cap on the density steering term's contribution, device px/sec — the "capped" in "capped steering term", so a freshly-crowded cell (many particles spawning at once) can't overpower the rest of the field. */
+  densityMaxPush: number;
+  /** Per-second exponential decay rate of the occupancy grid — how quickly "recently crowded" forgets itself. */
+  densityDecayRate: number;
+  /** Occupancy added per second at a particle's current cell (before decay). */
+  densityDepositRate: number;
+  /**
+   * Recycling for coverage: a particle sitting somewhere this many times
+   * the grid's mean interior density, sustained for DENSITY_RECYCLE_DURATION
+   * seconds (particles.ts), is respawned early at a fresh source rather
+   * than left to keep contributing to an already-crowded cell. Makes
+   * coverage something the system actively seeks, not just a side effect
+   * of the steering term above.
+   */
+  densityRecycleThreshold: number;
 }
 
 export const DEFAULT_FIELD_PARAMS: FieldParams = {
@@ -169,6 +205,27 @@ export const DEFAULT_FIELD_PARAMS: FieldParams = {
   // own docs above); 'south' — the step-2 field this replaces as default —
   // stays wired up behind the flag purely for A/B comparison.
   baseFieldMode: 'divergent',
+  // 2g: on by default — see field's own docs for what each knob does. A
+  // harness sweep (1400 particles, 45s) found the mechanism's headline
+  // metrics move a lot from merely being on (interior coverage 76.7% ->
+  // ~85%, top-5%-cell concentration 51.9% -> ~38-39%) but are fairly flat
+  // across a wide range of individual knob values — densityWeight 0.4-2.5
+  // and densityTargetMultiplier 1-2 all land within a percentage point or
+  // two of each other. The one knob that *does* move things is
+  // densityRecycleThreshold, which trades density-cause death share
+  // against how much the recycling mechanism itself contributes (2 ->
+  // 60% of deaths but barely better coverage than 999 -> 0%, i.e.
+  // recycling turned off outright) — 4 sits in the middle, meaningfully
+  // active without dominating the death-cause mix. Values below are that
+  // sweep's picks; final calibration, like every weight here, is still
+  // 2j's.
+  densityEnabled: true,
+  densityWeight: 0.9,
+  densityTargetMultiplier: 1.4,
+  densityMaxPush: 55,
+  densityDecayRate: 0.8,
+  densityDepositRate: 1,
+  densityRecycleThreshold: 4,
 };
 
 /**
@@ -258,6 +315,14 @@ export function sampleField(
   time = 0,
   traits: ParticleTraits = DEFAULT_TRAITS,
   noise3: Noise3 = defaultNoise3,
+  /**
+   * 2g's occupancy grid — owned by particles.ts's ParticleSystem (dynamic
+   * simulation state, not world geometry), passed in rather than looked
+   * up from `world` for that reason. Null when densityEnabled is false or
+   * the caller has no particle system yet (e.g. a future headless field
+   * visualiser); the density term below simply doesn't apply then.
+   */
+  densityField: DensityField | null = null,
 ): FieldSample {
   const [x, y] = pos;
   const { bounds } = world.projection;
@@ -342,6 +407,23 @@ export function sampleField(
   // --- Per-particle lateral bias (2c): fixed-at-spawn personality, so even
   // a fully deterministic field fans out under per-particle constants.
   vx += traits.lateralBias;
+
+  // --- Density-aware spacing (2g): a capped push down the local occupancy
+  // gradient, but only where it's actually crowded (local density over
+  // densityTargetMultiplier x the grid's current mean) — this is what
+  // makes it spacing rather than a blanket repulsion. Applied everywhere,
+  // like centering above, so it's part of the base journey, not a coast
+  // rescue.
+  if (params.densityEnabled && params.densityWeight > 0 && densityField) {
+    const { density, gx: dgx, gy: dgy } = densityField.sample(x, y);
+    const target = densityField.meanInteriorDensity * params.densityTargetMultiplier;
+    const over = density - target;
+    if (over > 0) {
+      const push = Math.min(params.densityMaxPush, over * params.densityWeight * params.driftStrength);
+      vx += dgx * push;
+      vy += dgy * push;
+    }
+  }
 
   // --- Boundary steering (rescue near the coast).
   if (dist < params.steerThreshold) {

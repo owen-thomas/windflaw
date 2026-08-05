@@ -14,7 +14,13 @@ import { DARK_PALETTE, PALETTES, type Palette, type PaletteName } from './palett
 const canvas = document.querySelector<HTMLCanvasElement>('#flow-canvas')!;
 const ctx = canvas.getContext('2d')!;
 
-const PARTICLE_COUNT = 3000;
+// 2g: dropped from step-2/3's 3000. The fan-out doc's feedback is explicit
+// that "fill the space" is a placement problem, not a quantity one — with
+// density-aware spacing now doing that work, fewer elements read better,
+// and the freed frame budget pays for the density grid's per-frame decay
+// + gradient recompute. Still a slider-to-come (step 4's control panel
+// goes up to ~8000 either way).
+const PARTICLE_COUNT = 1400;
 
 let palette: Palette = DARK_PALETTE;
 // Live, mutable copy — DEFAULT_FIELD_PARAMS itself stays a pure constant.
@@ -95,6 +101,11 @@ window.addEventListener('keydown', (e) => {
     // field — see field.ts's baseFieldMode docs.
     fieldParams.baseFieldMode = fieldParams.baseFieldMode === 'divergent' ? 'south' : 'divergent';
     console.log(`[flow] baseFieldMode -> ${fieldParams.baseFieldMode}`);
+  } else if (e.key === 'g') {
+    // 2g A/B: density-aware spacing (steering term + coverage recycling)
+    // on vs off — see field.ts's densityEnabled docs.
+    fieldParams.densityEnabled = !fieldParams.densityEnabled;
+    console.log(`[flow] densityEnabled -> ${fieldParams.densityEnabled}`);
   }
 });
 

@@ -1,3 +1,4 @@
+import { buildDensityField, type DensityField } from './densityField';
 import {
   DEFAULT_FIELD_PARAMS,
   sampleField,
@@ -187,6 +188,15 @@ const STALL_DURATION = 1.5; // seconds
 const TRAPPED_CHECK_INTERVAL = 1.2; // seconds between displacement checks
 const TRAPPED_MIN_DISPLACEMENT = 25; // device px of net progress required per interval
 
+// --- Step 2g: density-aware spacing --------------------------------------
+// How long a particle has to sit somewhere over densityRecycleThreshold x
+// the grid's mean before it's force-respawned (see field.ts's docs and
+// the `overDensityTime` tracking below). Longer than STALL_DURATION —
+// sitting in a crowded cell isn't dangerous the way stalling in the far
+// south is, it's just wasteful, so it gets a more patient grace period
+// before the system intervenes.
+const DENSITY_RECYCLE_DURATION = 2.0; // seconds
+
 // --- Step 2c: per-particle persistence --------------------------------------
 // Ranges for the fixed-at-spawn traits passed into sampleField. Deliberately
 // small relative to the quantities they perturb (see field.ts's docs on
@@ -200,7 +210,7 @@ const LATERAL_BIAS_MAGNITUDE = 20; // device px/sec, ± half this
 // retuning of downstream field weights would only have held at 60fps.
 const EASE_RATE_AT_60FPS = 0.25;
 
-export type DeathCause = 'age' | 'strike' | 'stall' | 'trapped';
+export type DeathCause = 'age' | 'strike' | 'stall' | 'trapped' | 'density';
 
 export interface ParticleSystemOptions {
   /**
@@ -252,6 +262,8 @@ export class ParticleSystem {
   checkpointY: Float32Array;
   /** Seconds since the trapped-check window last reset. */
   checkpointAge: Float32Array;
+  /** Consecutive seconds this particle has sat over densityRecycleThreshold x the grid's mean — see DENSITY_RECYCLE_DURATION. */
+  overDensityTime: Float32Array;
 
   // Step 2c persistent per-particle traits — see field.ts's ParticleTraits docs.
   chirality: Float32Array;
@@ -290,6 +302,9 @@ export class ParticleSystem {
    */
   totalStrikeEvents = 0;
 
+  /** 2g's occupancy grid — dynamic simulation state, rebuilt whenever the world (and so the mask's dimensions) changes. */
+  densityField: DensityField;
+
   private cumulativeRates: number[] = [];
   private totalRate = 0;
 
@@ -314,11 +329,13 @@ export class ParticleSystem {
     this.checkpointX = new Float32Array(count);
     this.checkpointY = new Float32Array(count);
     this.checkpointAge = new Float32Array(count);
+    this.overDensityTime = new Float32Array(count);
     this.chirality = new Float32Array(count);
     this.lateralBias = new Float32Array(count);
     this.noisePhase = new Float32Array(count);
     this.hueBucket = new Int8Array(count);
     this.weightBucket = new Int8Array(count);
+    this.densityField = buildDensityField(world.mask);
 
     this.buildRateTable();
     for (let i = 0; i < count; i++) {
@@ -332,6 +349,11 @@ export class ParticleSystem {
   setWorld(world: World) {
     this.world = world;
     this.buildRateTable();
+    // A resize changes the mask's dimensions, so the occupancy grid has to
+    // be rebuilt at the new size — rebuilding (rather than resampling)
+    // just means a brief cold start for the density signal, which decays
+    // back to steady-state within a couple of DENSITY_RECYCLE_DURATIONs.
+    this.densityField = buildDensityField(world.mask);
   }
 
   private buildRateTable() {
@@ -415,6 +437,7 @@ export class ParticleSystem {
     this.checkpointX[i] = sx;
     this.checkpointY[i] = sy;
     this.checkpointAge[i] = 0;
+    this.overDensityTime[i] = 0;
     this.chirality[i] = (Math.random() - 0.5) * CHIRALITY_MAGNITUDE;
     this.lateralBias[i] = (Math.random() - 0.5) * LATERAL_BIAS_MAGNITUDE;
     this.noisePhase[i] = Math.random() * 1000; // decorrelates the fine noise octave's time axis
@@ -430,6 +453,17 @@ export class ParticleSystem {
     // it to a continuous per-second rate means tuned values hold at any
     // frame rate, not just 60fps.
     const ease = 1 - Math.pow(1 - EASE_RATE_AT_60FPS, dt * 60);
+
+    // 2g: decay + recompute the occupancy grid's gradient/mean once per
+    // frame, from last frame's final deposits — not once per particle.
+    // Every particle this frame reads the same settled snapshot (steering
+    // below) and then deposits into it for *next* frame's snapshot, a
+    // standard single-frame-lag scheme that keeps the field stable and the
+    // per-particle cost at "one more array lookup".
+    if (fieldParams.densityEnabled) {
+      const decayFactor = Math.exp(-fieldParams.densityDecayRate * dt);
+      this.densityField.decayAndUpdateGradient(decayFactor);
+    }
 
     for (let i = 0; i < this.count; i++) {
       this.px[i] = this.x[i];
@@ -447,6 +481,8 @@ export class ParticleSystem {
         fieldParams,
         this.time,
         traits,
+        undefined,
+        fieldParams.densityEnabled ? this.densityField : null,
       );
       const len = Math.hypot(fx, fy) || 1;
       // Ease heading toward the field direction rather than snapping to
@@ -550,6 +586,30 @@ export class ParticleSystem {
         this.checkpointAge[i] = 0;
       }
 
+      // 2g: deposit at this frame's final (post-move, post-rescue)
+      // position, and track how long this particle has sat somewhere
+      // over-dense — "recycling for coverage". Deposit happens
+      // unconditionally when the mechanism is on (even a particle about
+      // to be force-respawned below should still register where it *was*
+      // crowding); the recycle check reads the density this frame's
+      // deposit doesn't affect until next frame's decayAndUpdateGradient,
+      // so it can't immediately re-trigger itself.
+      let overDensity = false;
+      if (fieldParams.densityEnabled) {
+        this.densityField.deposit(this.x[i], this.y[i], fieldParams.densityDepositRate * dt);
+        const { density } = this.densityField.sample(this.x[i], this.y[i]);
+        const mean = this.densityField.meanInteriorDensity;
+        // Guard against the cold-start window (mean still ~0, nothing
+        // deposited yet) reading every first-touched cell as infinitely
+        // over its target.
+        if (mean > 1e-6 && density > mean * fieldParams.densityRecycleThreshold) {
+          this.overDensityTime[i] += dt;
+        } else {
+          this.overDensityTime[i] = 0;
+        }
+        if (this.overDensityTime[i] > DENSITY_RECYCLE_DURATION) overDensity = true;
+      }
+
       // Order matters only for reporting which cause "wins" when several
       // thresholds are crossed in the same frame — containment and the
       // respawn itself don't depend on it.
@@ -558,6 +618,7 @@ export class ParticleSystem {
       else if (this.strikes[i] > STRIKE_LIMIT) cause = 'strike';
       else if (this.stallTime[i] > STALL_DURATION) cause = 'stall';
       else if (trapped) cause = 'trapped';
+      else if (overDensity) cause = 'density';
 
       if (cause) {
         this.options.onDeath?.(i, cause, this.age[i]);

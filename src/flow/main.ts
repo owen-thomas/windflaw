@@ -5,7 +5,7 @@
  * panel + presets (step 4) are still to come.
  */
 
-import { DEFAULT_FIELD_PARAMS } from './field';
+import { DEFAULT_FIELD_PARAMS, type FieldParams } from './field';
 import { ParticleSystem, segmentLeavesMask } from './particles';
 import { renderDebugOverlay, type DebugLayer } from './debug';
 import { buildWorld, GB_RING, type World } from './world';
@@ -17,6 +17,11 @@ const ctx = canvas.getContext('2d')!;
 const PARTICLE_COUNT = 3000;
 
 let palette: Palette = DARK_PALETTE;
+// Live, mutable copy — DEFAULT_FIELD_PARAMS itself stays a pure constant.
+// Mutable so runtime toggles (baseFieldMode's 'f' key below; more to come
+// as later fan-out steps land their own A/B flags) can flip a field
+// without a page reload.
+const fieldParams: FieldParams = { ...DEFAULT_FIELD_PARAMS };
 
 let world: World;
 let particles: ParticleSystem;
@@ -85,6 +90,11 @@ window.addEventListener('keydown', (e) => {
     toggleLayer('gradient');
   } else if (e.key === 'p') {
     setPalette(palette.name === 'dark' ? 'light' : 'dark');
+  } else if (e.key === 'f') {
+    // 2f A/B: divergent-from-sources (default) vs the step-2 south-goal
+    // field — see field.ts's baseFieldMode docs.
+    fieldParams.baseFieldMode = fieldParams.baseFieldMode === 'divergent' ? 'south' : 'divergent';
+    console.log(`[flow] baseFieldMode -> ${fieldParams.baseFieldMode}`);
   }
 });
 
@@ -107,7 +117,7 @@ function frame(now: number) {
   ctx.fillStyle = `rgba(${palette.backgroundRGB}, ${palette.washAlpha})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  particles.step(dt, DEFAULT_FIELD_PARAMS);
+  particles.step(dt, fieldParams);
   particles.render(ctx, palette);
 
   if (debugVisible) {

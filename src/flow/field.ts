@@ -60,16 +60,31 @@ export interface FieldParams {
   /** Overall curl-noise strength, as a fraction of driftStrength. */
   noiseWeight: number;
   /**
-   * How much the base southward direction follows the world's geodesic
-   * "path-aware" field (geodesicField.ts) instead of assuming a straight
-   * line south, 0..1. At 0, behaves like a purely local field (today's
-   * "south is (0,1)"); at 1, the base direction always follows the
-   * geodesically shortest interior route to the south, bending around
-   * bays and necks it can't see through. Added specifically for the
-   * Scotland/England border trap (a genuine narrow waist a local field
-   * has no way to route around) — see world.ts's `geodesicField` docs.
+   * How much the base direction follows `baseFieldMode`'s world field
+   * instead of assuming a straight line south, 0..1. At 0, behaves like a
+   * purely local field (naive "south is (0,1)"); at 1, the base direction
+   * always follows that field's gradient. Added specifically for the
+   * Scotland/England border trap (a genuine narrow waist a local field has
+   * no way to route around) — see world.ts's `geodesicField` docs.
    */
   pathWeight: number;
+  /**
+   * Which precomputed world field `pathWeight` blends toward — 2f of
+   * `Flow experiment fan-out.txt`.
+   *
+   * - 'divergent' (default): world.divergentField — a multi-source field
+   *   seeded at the seven sources, gradient followed toward *increasing*
+   *   distance. Divergent by construction: narrowest at the sources,
+   *   spreading to fill every reachable cell. This is what kills the
+   *   funnel (see the fan-out doc's diagnosis) — 'south' below is the
+   *   funnel's direct cause, kept only for comparison.
+   * - 'south': world.geodesicField — the step-2 field, a single southern
+   *   goal band that every path converges toward. All shortest paths to a
+   *   shared goal merge, which is what "shortest" means; that's the
+   *   funnel. Kept behind this flag purely so the two can be A/B'd against
+   *   each other (browser: 'f' key toggles it; harness: --baseFieldMode).
+   */
+  baseFieldMode: 'divergent' | 'south';
 }
 
 export const DEFAULT_FIELD_PARAMS: FieldParams = {
@@ -128,11 +143,32 @@ export const DEFAULT_FIELD_PARAMS: FieldParams = {
   // 0.15 keeps enough real swirl for organic texture (the spec's "not a
   // uniform particle system") without letting it swamp the drift.
   noiseWeight: 0.15,
-  // High but not 1.0: the geodesic field should dominate "which way is
-  // south" (that's the whole point — it sees the coastline's true shape),
-  // but leaving a little pure-south blended in keeps the base direction
-  // from changing too sharply right at a coarse grid cell boundary.
-  pathWeight: 0.9,
+  // Retuned 0.9 -> 0.6 landing 2f, specifically because of how it
+  // interacts with baseFieldMode='divergent'. At 0.9 the divergent field
+  // was diagnosed (harness sweep during that session) to dominate right
+  // where it's least reliable: exactly at a source cell the "away from
+  // source" gradient is a true point-source singularity (every direction
+  // is equally "away"), and with five of the seven sources sitting within
+  // ~80px of each other near the west coast, their basins' Voronoi-like
+  // ridges sit right where particles spawn — at 0.9, particles spent most
+  // of their short lives tangled in that near-source ambiguity,
+  // oscillating against coast steering ("trapped" deaths 94%, p50 lifespan
+  // 4.87s) rather than actually fanning out. 0.6 keeps the divergent field
+  // dominant (it's still the majority term) while blending back enough
+  // naive-straight-south to carry particles clear of the near-source ridge
+  // before it has much say — measured markedly better on the metrics 2f is
+  // actually for: interior coverage 46.8% -> 77.2%, top-5%-cell
+  // concentration 76.8% -> 50.9% (1500 particles, 40s). Below ~0.5 the
+  // divergent field stops being able to route around real coastal traps at
+  // all and both numbers collapse (step 1's original "no path-awareness"
+  // failure mode reappearing) — 0.6 is comfortably above that cliff. Final
+  // figure, like every other weight here, is still subject to 2j's
+  // whole-system retune.
+  pathWeight: 0.6,
+  // 2f: divergent-from-sources is the fix for the funnel (see this field's
+  // own docs above); 'south' — the step-2 field this replaces as default —
+  // stays wired up behind the flag purely for A/B comparison.
+  baseFieldMode: 'divergent',
 };
 
 /**
@@ -232,14 +268,19 @@ export function sampleField(
   let vy = params.driftStrength * driftScale;
 
   // --- Path-aware base direction: blend the naive straight-south
-  // direction with the world's geodesic "which way is actually south"
-  // field (world.ts's geodesicField). At pathWeight=1 this fully replaces
-  // (0,1) with the geodesically-shortest interior direction; at 0 it's
-  // pure straight-line south, the pre-fix behaviour. Everything below
-  // (fan, centering, noise, steering) still layers on top of this base
-  // direction exactly as before — only what "south" means has changed.
+  // direction with a precomputed world field — world.divergentField (2f
+  // default: away from the sources, divergent by construction) or
+  // world.geodesicField (the step-2 field this replaces: toward a southern
+  // goal band, convergent by construction — see baseFieldMode's docs). At
+  // pathWeight=1 this fully replaces (0,1) with that field's direction; at
+  // 0 it's pure straight-line south. Everything below (fan, centering,
+  // noise, steering) still layers on top of this base direction exactly as
+  // before — only what it follows has changed.
   if (params.pathWeight > 0) {
-    const path = world.geodesicField.sample(x, y);
+    const path =
+      params.baseFieldMode === 'south'
+        ? world.geodesicField.sample(x, y)
+        : world.divergentField.sample(x, y);
     if (path.dist !== Infinity && (path.gx !== 0 || path.gy !== 0)) {
       const pathVx = path.gx * params.driftStrength * driftScale;
       const pathVy = path.gy * params.driftStrength * driftScale;

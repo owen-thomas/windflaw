@@ -32,15 +32,19 @@
  *
  * Run with:
  *   npx tsx scripts/flow-harness.ts [--particles=3000] [--seconds=60] [--legacy]
+ *     [--baseFieldMode=divergent|south]
  *
  * --legacy reproduces step 1's fixed 4-9s age-budget ceiling (only), for a
  * true before/after comparison of just that fix in isolation from 2a-2e.
+ * --baseFieldMode=south reproduces the step-2 convergent-to-a-southern-goal
+ * field (2f's diagnosed funnel cause) for a before/after of 2f in isolation
+ * from 2g-2j; default 'divergent' is the fan-out doc's fix.
  */
 
 import { performance } from 'node:perf_hooks';
 import { buildWorld } from '../src/flow/world';
 import { ParticleSystem, type DeathCause } from '../src/flow/particles';
-import { DEFAULT_FIELD_PARAMS, southness } from '../src/flow/field';
+import { DEFAULT_FIELD_PARAMS, type FieldParams, southness } from '../src/flow/field';
 
 interface Args {
   particles: number;
@@ -48,6 +52,8 @@ interface Args {
   ageBudgetMode: 'dynamic' | 'legacy';
   width: number;
   height: number;
+  /** 2f A/B: --baseFieldMode=south reproduces the step-2 funnel field for comparison. */
+  baseFieldMode: FieldParams['baseFieldMode'];
 }
 
 function parseArgs(): Args {
@@ -56,6 +62,10 @@ function parseArgs(): Args {
     const hit = argv.find((a) => a.startsWith(`--${name}=`));
     return hit ? hit.slice(hit.indexOf('=') + 1) : def;
   };
+  const baseFieldMode = get('baseFieldMode', 'divergent');
+  if (baseFieldMode !== 'divergent' && baseFieldMode !== 'south') {
+    throw new Error(`--baseFieldMode must be 'divergent' or 'south', got '${baseFieldMode}'`);
+  }
   return {
     particles: Number(get('particles', '3000')),
     seconds: Number(get('seconds', '60')),
@@ -64,6 +74,7 @@ function parseArgs(): Args {
     // plausible mid-range laptop, matching main.ts's dpr cap.
     width: Number(get('width', '2400')),
     height: Number(get('height', '1600')),
+    baseFieldMode,
   };
 }
 
@@ -80,6 +91,7 @@ function percentile(sortedAscending: number[], p: number): number {
 
 function run(args: Args) {
   const world = buildWorld(args.width, args.height);
+  const fieldParams: FieldParams = { ...DEFAULT_FIELD_PARAMS, baseFieldMode: args.baseFieldMode };
 
   const deathCounts: Record<DeathCause, number> = { age: 0, strike: 0, stall: 0, trapped: 0 };
   const lifespans: number[] = [];
@@ -125,7 +137,7 @@ function run(args: Args) {
 
   for (let f = 0; f < steps; f++) {
     const t0 = performance.now();
-    particles.step(DT, DEFAULT_FIELD_PARAMS);
+    particles.step(DT, fieldParams);
     frameCostsMsAscending.push(performance.now() - t0);
 
     for (let i = 0; i < args.particles; i++) {
@@ -149,7 +161,8 @@ function run(args: Args) {
 
   console.log(
     `\n=== flow-harness: ${args.particles} particles, ${args.seconds}s sim, ` +
-      `ageBudgetMode=${args.ageBudgetMode}, ${args.width}x${args.height} ===\n`,
+      `ageBudgetMode=${args.ageBudgetMode}, baseFieldMode=${args.baseFieldMode}, ` +
+      `${args.width}x${args.height} ===\n`,
   );
 
   if (totalDeaths === 0) {

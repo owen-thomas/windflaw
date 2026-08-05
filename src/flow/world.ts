@@ -1,5 +1,6 @@
 import gbMainland from './data/gb-mainland.json';
 import { buildDistanceField, type DistanceField } from './distanceField';
+import { buildDivergentField, type DivergentField } from './divergentField';
 import { buildGeodesicField, type GeodesicField } from './geodesicField';
 import { buildRasterMask, type RasterMask } from './mask';
 import { buildProjection, type Projection } from './projection';
@@ -46,6 +47,19 @@ export interface World {
    * rather than open coastline.
    */
   geodesicField: GeodesicField;
+  /**
+   * Divergent "away from sources" field (see divergentField.ts) — 2f of
+   * `Flow experiment fan-out.txt`. The default base-direction field
+   * (field.ts's `baseFieldMode`); `geodesicField` above is kept alongside
+   * it, unused by default, purely so the two can be A/B'd against each
+   * other (browser: 'f' key; harness: --baseFieldMode).
+   */
+  divergentField: DivergentField;
+}
+
+export interface WorldBuildOptions {
+  /** Overrides divergentField.ts's default anisotropic BFS cost — see its docs. */
+  divergentNorthwardCostMultiplier?: number;
 }
 
 /**
@@ -98,7 +112,11 @@ function snapInside(
   return [x, y];
 }
 
-export function buildWorld(viewportWidth: number, viewportHeight: number): World {
+export function buildWorld(
+  viewportWidth: number,
+  viewportHeight: number,
+  options: WorldBuildOptions = {},
+): World {
   const projection = buildProjection(GB_RING, viewportWidth, viewportHeight);
   const mask = buildRasterMask(GB_RING, projection, viewportWidth, viewportHeight);
   const distanceField = buildDistanceField(mask);
@@ -127,5 +145,15 @@ export function buildWorld(viewportWidth: number, viewportHeight: number): World
     if (d > maxInteriorDist) maxInteriorDist = d;
   }
 
-  return { projection, mask, distanceField, sources, maxInteriorDist, geodesicField };
+  // Built from the sources' final resolved (post-snap) positions, so a
+  // snapped source (Edinbane, Seagreen) diverges from its actual mainland
+  // anchor, not its off-mainland raw coordinate.
+  const divergentField = buildDivergentField(
+    mask,
+    sources.map((s) => s.position),
+    undefined,
+    options.divergentNorthwardCostMultiplier,
+  );
+
+  return { projection, mask, distanceField, sources, maxInteriorDist, geodesicField, divergentField };
 }

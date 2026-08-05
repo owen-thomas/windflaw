@@ -106,6 +106,11 @@ window.addEventListener('keydown', (e) => {
     // on vs off — see field.ts's densityEnabled docs.
     fieldParams.densityEnabled = !fieldParams.densityEnabled;
     console.log(`[flow] densityEnabled -> ${fieldParams.densityEnabled}`);
+  } else if (e.key === 'n') {
+    // 2h A/B: transverse (default) vs the step-2 isotropic curl mechanism
+    // — see field.ts's noiseMode docs.
+    fieldParams.noiseMode = fieldParams.noiseMode === 'transverse' ? 'isotropicCurl' : 'transverse';
+    console.log(`[flow] noiseMode -> ${fieldParams.noiseMode}`);
   }
 });
 

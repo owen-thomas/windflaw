@@ -33,6 +33,7 @@
  * Run with:
  *   npx tsx scripts/flow-harness.ts [--particles=3000] [--seconds=60] [--legacy]
  *     [--baseFieldMode=divergent|south] [--noDensity]
+ *     [--noiseMode=transverse|isotropicCurl]
  *
  * --legacy reproduces step 1's fixed 4-9s age-budget ceiling (only), for a
  * true before/after comparison of just that fix in isolation from 2a-2e.
@@ -41,6 +42,9 @@
  * from 2g-2j; default 'divergent' is the fan-out doc's fix.
  * --noDensity disables 2g's density-aware spacing (steering term +
  * coverage recycling) for a before/after of 2g in isolation.
+ * --noiseMode=isotropicCurl reproduces the step-2 noise mechanism (2h's
+ * diagnosed reversal-at-the-sources cause) for a before/after of 2h in
+ * isolation; default 'transverse' is the fan-out doc's fix.
  */
 
 import { performance } from 'node:perf_hooks';
@@ -58,6 +62,8 @@ interface Args {
   baseFieldMode: FieldParams['baseFieldMode'];
   /** 2g A/B: --noDensity disables density-aware spacing (steering term + coverage recycling) for comparison. */
   densityEnabled: boolean;
+  /** 2h A/B: --noiseMode=isotropicCurl reproduces the step-2 noise mechanism for comparison. */
+  noiseMode: FieldParams['noiseMode'];
 }
 
 function parseArgs(): Args {
@@ -70,6 +76,10 @@ function parseArgs(): Args {
   if (baseFieldMode !== 'divergent' && baseFieldMode !== 'south') {
     throw new Error(`--baseFieldMode must be 'divergent' or 'south', got '${baseFieldMode}'`);
   }
+  const noiseMode = get('noiseMode', 'transverse');
+  if (noiseMode !== 'transverse' && noiseMode !== 'isotropicCurl') {
+    throw new Error(`--noiseMode must be 'transverse' or 'isotropicCurl', got '${noiseMode}'`);
+  }
   return {
     particles: Number(get('particles', '3000')),
     seconds: Number(get('seconds', '60')),
@@ -80,6 +90,7 @@ function parseArgs(): Args {
     height: Number(get('height', '1600')),
     baseFieldMode,
     densityEnabled: !argv.includes('--noDensity'),
+    noiseMode,
   };
 }
 
@@ -100,6 +111,7 @@ function run(args: Args) {
     ...DEFAULT_FIELD_PARAMS,
     baseFieldMode: args.baseFieldMode,
     densityEnabled: args.densityEnabled,
+    noiseMode: args.noiseMode,
   };
 
   const deathCounts: Record<DeathCause, number> = {
@@ -178,7 +190,8 @@ function run(args: Args) {
   console.log(
     `\n=== flow-harness: ${args.particles} particles, ${args.seconds}s sim, ` +
       `ageBudgetMode=${args.ageBudgetMode}, baseFieldMode=${args.baseFieldMode}, ` +
-      `densityEnabled=${args.densityEnabled}, ${args.width}x${args.height} ===\n`,
+      `densityEnabled=${args.densityEnabled}, noiseMode=${args.noiseMode}, ` +
+      `${args.width}x${args.height} ===\n`,
   );
 
   if (totalDeaths === 0) {

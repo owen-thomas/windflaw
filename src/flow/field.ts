@@ -121,6 +121,33 @@ export interface FieldParams {
    * of the steering term above.
    */
   densityRecycleThreshold: number;
+  /**
+   * Which mechanism carries the coarse/fine noise octaves — 2h of
+   * `Flow experiment fan-out.txt`.
+   * - 'transverse' (default): the noise *potential* (not its curl)
+   *   displaces flow sideways, projected onto the perpendicular of the
+   *   base direction accumulated so far. A perpendicular offset can never
+   *   flip the sign of the along-flow component, so the flow can undulate
+   *   — ebb and flow — but never be turned around by its own texture.
+   * - 'isotropicCurl': the step-2 mechanism this replaces as default —
+   *   divergence-free curl of the same scalar field, added directly, with
+   *   no relationship to the base direction. Genuinely isotropic, which
+   *   is exactly why it could (and did, at the sources) overpower and
+   *   reverse the base direction — see noiseWeight's own history below.
+   *   Kept behind this flag purely for A/B (browser: 'n' key; harness:
+   *   --noiseMode).
+   */
+  noiseMode: 'transverse' | 'isotropicCurl';
+  /**
+   * 0..1-ish: how much the same coarse noise octave that drives
+   * transverse wave motion also modulates 2g's density target, so bands
+   * of gathered (higher target, tighter spacing tolerated before the
+   * steering term fires) and loosened (lower target, more push) travel
+   * through the flow as the noise evolves — Digital Art.jpg's wave
+   * sensation, made of spacing rather than of path wiggles. 0 (2g's
+   * landing value) leaves the target flat.
+   */
+  spacingWaveAmplitude: number;
 }
 
 export const DEFAULT_FIELD_PARAMS: FieldParams = {
@@ -178,7 +205,16 @@ export const DEFAULT_FIELD_PARAMS: FieldParams = {
   // out to have been actively hurting concentration too, not helping it).
   // 0.15 keeps enough real swirl for organic texture (the spec's "not a
   // uniform particle system") without letting it swamp the drift.
-  noiseWeight: 0.15,
+  // Bumped 0.15 -> 0.4 landing 2h: that whole ceiling was about the
+  // *isotropic* mechanism specifically (it could reverse the base
+  // direction once it was the larger term, which is what capped it so
+  // low) — 2h's transverse projection can't reverse anything by
+  // construction, so the same failure mode doesn't apply. 0.4 is a first
+  // interim bump to where the coarse octave's 6-10 wave features actually
+  // read (they were nearly invisible at 0.15); final figure is 2j's, once
+  // this is judged against Digital Art.jpg's transverse-wave rhythm
+  // directly rather than inferred from harness numbers alone.
+  noiseWeight: 0.4,
   // Retuned 0.9 -> 0.6 landing 2f, specifically because of how it
   // interacts with baseFieldMode='divergent'. At 0.9 the divergent field
   // was diagnosed (harness sweep during that session) to dominate right
@@ -226,6 +262,15 @@ export const DEFAULT_FIELD_PARAMS: FieldParams = {
   densityDecayRate: 0.8,
   densityDepositRate: 1,
   densityRecycleThreshold: 4,
+  // 2h: transverse is the fix for the reversal problem (see noiseMode's
+  // own docs above); 'isotropicCurl' — the step-2 mechanism this replaces
+  // as default — stays wired up behind the flag purely for A/B.
+  noiseMode: 'transverse',
+  // On by default at a modest amplitude — see spacingWaveAmplitude's own
+  // docs. Kept well under 1 so the target can loosen substantially in a
+  // trough but never so far it goes negative (the density block clamps
+  // that regardless, but this keeps normal operation away from the clamp).
+  spacingWaveAmplitude: 0.5,
 };
 
 /**
@@ -378,30 +423,59 @@ export function sampleField(
     vy += gy * centerStrength;
   }
 
-  // --- Curl noise (2d): divergence-free by construction (see noise.ts),
-  // so it adds swirl without creating sources/sinks. Coarse octave is
-  // shared by every particle at a wavelength ~1/3 of GB's width; fine
-  // octave carries the particle's own noisePhase for per-particle texture.
+  // --- Wave noise (2d, mechanism replaced by 2h): coarse octave shared by
+  // every particle at a wavelength ~1/3 of GB's width, giving 6-10
+  // coherent features across the frame; fine octave carries the
+  // particle's own noisePhase for per-particle texture. See noiseMode's
+  // docs for why 'transverse' is the default and what 'isotropicCurl'
+  // (the mechanism this replaced) got wrong.
+  const FINE_FREQ_RATIO = 3.5;
+  const FINE_WEIGHT_RATIO = 0.35;
   if (params.noiseWeight > 0) {
     const width = bounds.right - bounds.left || 1;
     const coarseFreq = params.noiseScale / width;
     const t = time * params.noiseSpeed;
-    const NOISE_EPS = 1e-3; // finite-difference step, in noise-space (post-frequency-scale) units
-    const [ncx, ncy] = curl2D(noise3, x * coarseFreq, y * coarseFreq, t, NOISE_EPS);
-    vx += ncx * params.noiseWeight * params.driftStrength;
-    vy += ncy * params.noiseWeight * params.driftStrength;
 
-    const FINE_FREQ_RATIO = 3.5;
-    const FINE_WEIGHT_RATIO = 0.35;
-    const [nfx, nfy] = curl2D(
-      noise3,
-      x * coarseFreq * FINE_FREQ_RATIO,
-      y * coarseFreq * FINE_FREQ_RATIO,
-      t * 1.6 + traits.noisePhase,
-      NOISE_EPS,
-    );
-    vx += nfx * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
-    vy += nfy * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+    if (params.noiseMode === 'transverse') {
+      // The noise *potential* itself (not its curl) displaces flow
+      // sideways, projected onto the perpendicular of the base direction
+      // accumulated so far (vx, vy) — rotate 90°. A perpendicular offset
+      // is orthogonal to the along-flow component by construction, so it
+      // can never flip its sign: the flow undulates but can't be turned
+      // around by its own texture, however large noiseWeight gets.
+      const baseLen = Math.hypot(vx, vy) || 1;
+      const bx = vx / baseLen;
+      const by = vy / baseLen;
+      const px = -by;
+      const py = bx;
+
+      const coarseAmp = noise3(x * coarseFreq, y * coarseFreq, t); // ~[-1, 1]
+      vx += px * coarseAmp * params.noiseWeight * params.driftStrength;
+      vy += py * coarseAmp * params.noiseWeight * params.driftStrength;
+
+      const fineAmp = noise3(
+        x * coarseFreq * FINE_FREQ_RATIO,
+        y * coarseFreq * FINE_FREQ_RATIO,
+        t * 1.6 + traits.noisePhase,
+      );
+      vx += px * fineAmp * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+      vy += py * fineAmp * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+    } else {
+      const NOISE_EPS = 1e-3; // finite-difference step, in noise-space (post-frequency-scale) units
+      const [ncx, ncy] = curl2D(noise3, x * coarseFreq, y * coarseFreq, t, NOISE_EPS);
+      vx += ncx * params.noiseWeight * params.driftStrength;
+      vy += ncy * params.noiseWeight * params.driftStrength;
+
+      const [nfx, nfy] = curl2D(
+        noise3,
+        x * coarseFreq * FINE_FREQ_RATIO,
+        y * coarseFreq * FINE_FREQ_RATIO,
+        t * 1.6 + traits.noisePhase,
+        NOISE_EPS,
+      );
+      vx += nfx * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+      vy += nfy * params.noiseWeight * FINE_WEIGHT_RATIO * params.driftStrength;
+    }
   }
 
   // --- Per-particle lateral bias (2c): fixed-at-spawn personality, so even
@@ -409,14 +483,33 @@ export function sampleField(
   vx += traits.lateralBias;
 
   // --- Density-aware spacing (2g): a capped push down the local occupancy
-  // gradient, but only where it's actually crowded (local density over
-  // densityTargetMultiplier x the grid's current mean) — this is what
-  // makes it spacing rather than a blanket repulsion. Applied everywhere,
-  // like centering above, so it's part of the base journey, not a coast
-  // rescue.
+  // gradient, but only where it's actually crowded (local density over a
+  // target multiple of the grid's current mean) — this is what makes it
+  // spacing rather than a blanket repulsion. Applied everywhere, like
+  // centering above, so it's part of the base journey, not a coast rescue.
   if (params.densityEnabled && params.densityWeight > 0 && densityField) {
     const { density, gx: dgx, gy: dgy } = densityField.sample(x, y);
-    const target = densityField.meanInteriorDensity * params.densityTargetMultiplier;
+    let targetMultiplier = params.densityTargetMultiplier;
+    if (params.spacingWaveAmplitude > 0) {
+      // 2h, second half: modulate the target with the SAME coarse noise
+      // octave the transverse wave noise above rides on (same frequency,
+      // same time axis — recomputed here rather than threaded through as
+      // an extra return value, since sampleField's other terms are each
+      // self-contained blocks by convention) so bands of gathered (wave
+      // high -> higher target, tighter spacing tolerated) and loosened
+      // (wave low -> lower target, more push) travel through the flow at
+      // the same pace as the visible undulation — Digital Art.jpg's wave
+      // sensation, made of spacing rather than of path wiggles.
+      const width = bounds.right - bounds.left || 1;
+      const coarseFreq = params.noiseScale / width;
+      const t = time * params.noiseSpeed;
+      const wave = noise3(x * coarseFreq, y * coarseFreq, t); // ~[-1, 1]
+      targetMultiplier *= 1 + wave * params.spacingWaveAmplitude;
+    }
+    // Floored well above zero: a target of 0 (or negative) would make the
+    // steering term fire everywhere, including where the field is calm —
+    // exactly the blanket repulsion this mechanism is meant not to be.
+    const target = densityField.meanInteriorDensity * Math.max(0.1, targetMultiplier);
     const over = density - target;
     if (over > 0) {
       const push = Math.min(params.densityMaxPush, over * params.densityWeight * params.driftStrength);

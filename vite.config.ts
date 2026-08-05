@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
 /**
@@ -70,4 +71,12 @@ function devApi(): Plugin {
 
 export default defineConfig({
   plugins: [devApi()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        flow: resolve(__dirname, 'flow/index.html'),
+      },
+    },
+  },
 });

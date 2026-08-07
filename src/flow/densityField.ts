@@ -102,6 +102,15 @@ export function buildDensityField(
       // occupancy (negate the natural increasing-value central
       // difference) — the same "point toward what we actually want to
       // steer toward" convention geodesicField.ts uses for its goal.
+      // Non-interior neighbours (off-island) are permanently zero
+      // occupancy, not "actually calm" — treated as "no information" by
+      // substituting the centre cell's own value, same as
+      // divergentField.ts/geodesicField.ts do for their Infinity
+      // neighbours. Without this, a coastal interior cell's downhill
+      // direction pointed off-island along the entire coastline (every
+      // exterior neighbour reads as emptier than any interior one), which
+      // shoved density-driven spacing outward into the rescue/conform
+      // bands instead of letting it operate along the coast.
       for (let gy = 0; gy < gridHeight; gy++) {
         for (let gx = 0; gx < gridWidth; gx++) {
           const i = idx(gx, gy);
@@ -110,10 +119,12 @@ export function buildDensityField(
             gradY[i] = 0;
             continue;
           }
-          const l = occupancy[idx(Math.max(0, gx - 1), gy)];
-          const r = occupancy[idx(Math.min(gridWidth - 1, gx + 1), gy)];
-          const u = occupancy[idx(gx, Math.max(0, gy - 1))];
-          const d = occupancy[idx(gx, Math.min(gridHeight - 1, gy + 1))];
+          const center = occupancy[i];
+          const substitute = (ni: number) => (isInteriorCell[ni] ? occupancy[ni] : center);
+          const l = substitute(idx(Math.max(0, gx - 1), gy));
+          const r = substitute(idx(Math.min(gridWidth - 1, gx + 1), gy));
+          const u = substitute(idx(gx, Math.max(0, gy - 1)));
+          const d = substitute(idx(gx, Math.min(gridHeight - 1, gy + 1)));
           let dx = -(r - l);
           let dy = -(d - u);
           const len = Math.hypot(dx, dy);

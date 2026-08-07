@@ -187,6 +187,45 @@ const STALL_DURATION = 1.5; // seconds
 // simpler, more robust signal than any specific force balance.
 const TRAPPED_CHECK_INTERVAL = 1.2; // seconds between displacement checks
 const TRAPPED_MIN_DISPLACEMENT = 25; // device px of net progress required per interval
+// How many *consecutive* failed windows (measured from the same anchor —
+// the anchor only advances on a passing check, see the step() logic below)
+// before a particle is actually declared trapped. Originally 1 (any single
+// slow window was instant death), which measured "was this particular
+// 1.2s window slow" rather than "has this particle stopped getting
+// anywhere" — a harness instrumentation pass (2j retune follow-up) found
+// individual windows fail ~14% of the time even for healthy particles
+// (turns, wave troughs, coast-conform maneuvers all legitimately dip net
+// progress below TRAPPED_MIN_DISPLACEMENT for one window), and with a
+// ~4.9s median lifespan giving each particle only ~4 windows to get
+// unlucky in, that one-strike gate alone explained the bulk of the
+// system's death volume (76.5% of deaths attributed to 'trapped') without
+// most of those particles ever being genuinely stuck. Requiring several
+// in a row — mirroring STRIKE_LIMIT's own "consecutive" framing just
+// above — makes the anchor-retention already in the check logic actually
+// do its job: a real oscillation keeps failing from the same anchor and
+// still gets caught quickly, while an ordinary particle that has one slow
+// window gets a fair chance to prove it next window.
+//
+// A harness sweep (3000 particles, 60s, post density-gradient-bug fix)
+// picked 3 over 2: streak=2 still leaves 'trapped' as the second-largest
+// death cause (26.8% of deaths); streak=3 pushes it down to a genuine
+// backstop share (5.6%), for only a small further lifespan/coverage move
+// (p50 7.48s -> 8.90s, coverage 91.3% -> 90.5%, both within noise).
+//
+// Important, and not fully resolved by this change: fixing the early-death
+// bug means particles now survive roughly 2x as long (p50 4.87s -> 8.90s),
+// and totalStrikeEvents / particle-second — the "is steering failing"
+// guard-rail — rose alongside it (6.36 -> 8.55 measured against the
+// already-fixed densityField.ts coastal-gradient bug, itself down from
+// 9.93 pre-fix). That is the metric getting more honest, not worse: the
+// trapped bug was previously killing particles before they lived long
+// enough to rack up many strikes, artificially suppressing the reading.
+// The true rate of coast interaction was always this high; it just wasn't
+// being measured. Whether 8-8.5 strikes/particle-second is acceptable, or
+// steerWeight/pushWeight/conformWeight need their own look now that the
+// guard-rail can actually see them, is unresolved — flagged for whoever
+// does the next coast-steering pass rather than guessed at here.
+const TRAPPED_FAIL_STREAK = 3;
 
 // --- Step 2g: density-aware spacing --------------------------------------
 // How long a particle has to sit somewhere over densityRecycleThreshold x
@@ -262,6 +301,8 @@ export class ParticleSystem {
   checkpointY: Float32Array;
   /** Seconds since the trapped-check window last reset. */
   checkpointAge: Float32Array;
+  /** Consecutive failed trapped-check windows since the last passing one (see TRAPPED_FAIL_STREAK). */
+  trappedFailStreak: Uint8Array;
   /** Consecutive seconds this particle has sat over densityRecycleThreshold x the grid's mean — see DENSITY_RECYCLE_DURATION. */
   overDensityTime: Float32Array;
 
@@ -329,6 +370,7 @@ export class ParticleSystem {
     this.checkpointX = new Float32Array(count);
     this.checkpointY = new Float32Array(count);
     this.checkpointAge = new Float32Array(count);
+    this.trappedFailStreak = new Uint8Array(count);
     this.overDensityTime = new Float32Array(count);
     this.chirality = new Float32Array(count);
     this.lateralBias = new Float32Array(count);
@@ -437,6 +479,7 @@ export class ParticleSystem {
     this.checkpointX[i] = sx;
     this.checkpointY[i] = sy;
     this.checkpointAge[i] = 0;
+    this.trappedFailStreak[i] = 0;
     this.overDensityTime[i] = 0;
     this.chirality[i] = (Math.random() - 0.5) * CHIRALITY_MAGNITUDE;
     this.lateralBias[i] = (Math.random() - 0.5) * LATERAL_BIAS_MAGNITUDE;
@@ -569,7 +612,11 @@ export class ParticleSystem {
       // can graze on and off forever without ever stringing together
       // STRIKE_LIMIT *consecutive* strikes. Checked on its own interval
       // (not every frame) so it's measuring net progress over a window,
-      // not frame-to-frame jitter.
+      // not frame-to-frame jitter. The anchor (checkpointX/Y) only moves
+      // on a passing window, so consecutive failures are measured from the
+      // same point — TRAPPED_FAIL_STREAK failures in a row means the
+      // particle hasn't gone anywhere in TRAPPED_FAIL_STREAK *
+      // TRAPPED_CHECK_INTERVAL seconds, not just in one of them.
       let trapped = false;
       this.checkpointAge[i] += dt;
       if (this.checkpointAge[i] > TRAPPED_CHECK_INTERVAL) {
@@ -578,10 +625,12 @@ export class ParticleSystem {
           this.y[i] - this.checkpointY[i],
         );
         if (progressed < TRAPPED_MIN_DISPLACEMENT) {
-          trapped = true;
+          this.trappedFailStreak[i]++;
+          if (this.trappedFailStreak[i] >= TRAPPED_FAIL_STREAK) trapped = true;
         } else {
           this.checkpointX[i] = this.x[i];
           this.checkpointY[i] = this.y[i];
+          this.trappedFailStreak[i] = 0;
         }
         this.checkpointAge[i] = 0;
       }
@@ -591,9 +640,12 @@ export class ParticleSystem {
       // over-dense — "recycling for coverage". Deposit happens
       // unconditionally when the mechanism is on (even a particle about
       // to be force-respawned below should still register where it *was*
-      // crowding); the recycle check reads the density this frame's
-      // deposit doesn't affect until next frame's decayAndUpdateGradient,
-      // so it can't immediately re-trigger itself.
+      // crowding). Note the recycle check below reads `density` right
+      // after this same deposit — `deposit()` mutates `occupancy`
+      // directly and `sample()` reads it live, so this frame's own
+      // deposit (and any lower-indexed particle's from this same frame)
+      // is already visible here, not deferred to the next
+      // `decayAndUpdateGradient` call.
       let overDensity = false;
       if (fieldParams.densityEnabled) {
         this.densityField.deposit(this.x[i], this.y[i], fieldParams.densityDepositRate * dt);

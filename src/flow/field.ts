@@ -286,12 +286,38 @@ export const DEFAULT_FIELD_PARAMS: FieldParams = {
   // against how much the recycling mechanism itself contributes (2 ->
   // 60% of deaths but barely better coverage than 999 -> 0%, i.e.
   // recycling turned off outright) — 4 sits in the middle, meaningfully
-  // active without dominating the death-cause mix. Values below are that
-  // sweep's picks; final calibration, like every weight here, is still
-  // 2j's.
+  // active without dominating the death-cause mix.
+  //
+  // densityTargetMultiplier retuned 1.4 -> 0.4 in the post-strike-rate-fix
+  // system-wide retune (see the boundary-steering rescue's own docs in
+  // this file — the coast rescue used to fight the base direction
+  // additively instead of cancelling its outward component first, which
+  // meant a lot of particle-time was being burned oscillating at a
+  // handful of coastal choke points rather than actually occupying the
+  // interior). Once that stopped happening, particles started living
+  // ~40% longer on average, and 1.4 — flat-across-a-wide-range under the
+  // *old* dynamics — stopped being flat: the extra lifetime went almost
+  // entirely into revisiting the same central corridor instead of new
+  // ground, since a target that loose barely engages the steering term.
+  // A harness sweep (2000 particles, 45s, post-fix) found
+  // interior coverage 87.2% -> 92.4% and top-5%-cell concentration
+  // 35.6% -> 32.9% from this knob alone; going lower still (0.2-0.3) keeps
+  // gaining a little but starts crowding densityTargetMultiplier's own
+  // floor of 0.1 (see that field's docs — the point below which the term
+  // fires everywhere and becomes the "blanket repulsion" it's
+  // specifically designed not to be), especially once spacingWaveAmplitude
+  // modulates it down further in a loosened-band trough. 0.4 keeps a ~4x
+  // margin above that floor even at the trough. Neither driftFalloff nor
+  // noiseWeight moved coverage/concentration meaningfully under the new
+  // dynamics (driftFalloff mainly trades reach-the-far-south against
+  // strike rate; noiseWeight helps coverage a little further at real cost
+  // to direction coherence) — this is the one knob that did the work.
+  // Traded away: direction coherence 0.41 -> ~0.36-0.39 and reach->=80%
+  // south ~15-16% -> ~13-14% (both guard-rails, not primary targets,
+  // per 2j's own metric ordering) — flagged, not chased further here.
   densityEnabled: true,
   densityWeight: 0.9,
-  densityTargetMultiplier: 1.4,
+  densityTargetMultiplier: 0.4,
   densityMaxPush: 55,
   densityDecayRate: 0.8,
   densityDepositRate: 1,
@@ -627,6 +653,30 @@ export function sampleField(
     // heading clearly favours one way on.
     const dot2 = t2x * hx + t2y * hy + traits.chirality;
     const [tx, ty] = dot1 >= dot2 ? [t1x, t1y] : [t2x, t2y];
+
+    // Neutralise any outward-pointing component the accumulated base
+    // direction (drift, path, fan, centering, noise, density, lateral bias
+    // — everything computed above) already has, before adding this
+    // rescue's own terms below. Without this, the rescue only ever *adds*
+    // a tangent + inward push on top of whatever's already there — at a
+    // bay mouth or re-entrant firth, the divergent field's "away from
+    // source" gradient (and density's "away from the crowd" push) can
+    // point straight out to sea, since that IS locally away from
+    // everything; the two forces then just partially cancel every frame
+    // instead of one of them winning, which is what produces a particle
+    // parked almost exactly on the waterline, re-striking nearly every
+    // frame. (Diagnosed via a strike-location heatmap: >50% of all
+    // strikes concentrated in ~8 grid cells, every one of them a real
+    // firth/bay/estuary — Solway Firth, the Clyde, the Wash, Morecambe
+    // Bay, Bristol Channel.) This only ever removes an outward component
+    // that's already there; it adds no new energy, so it's applied at
+    // full strength across the whole band rather than scaled by
+    // `proximity` below.
+    const outwardComponent = -(vx * gx + vy * gy); // gx,gy point inward; positive = v opposes it
+    if (outwardComponent > 0) {
+      vx += gx * outwardComponent;
+      vy += gy * outwardComponent;
+    }
 
     // Stronger the closer to (or past) the coast; a particle that's
     // already outside (dist < 0) gets an extra push, not just a blend.

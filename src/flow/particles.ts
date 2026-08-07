@@ -243,6 +243,55 @@ const DENSITY_RECYCLE_DURATION = 2.0; // seconds
 const CHIRALITY_MAGNITUDE = 0.5; // ± half this, additive on the coast tie-break's dot difference
 const LATERAL_BIAS_MAGNITUDE = 20; // device px/sec, ± half this
 
+/**
+ * Step 4 (control panel): live, per-instance multipliers on the respawn-time
+ * random spreads above, plus the source-spawn jitter radius. Public and
+ * mutable — the panel writes straight into `ParticleSystem.style`, same
+ * "no setters" convention as `fieldParams` in main.ts. Only affects
+ * particles at their *next* respawn (traits are fixed-at-spawn by design —
+ * see field.ts's ParticleTraits docs), same as particle count only taking
+ * effect via a rebuild.
+ */
+export interface ParticleStyle {
+  /**
+   * Scales the spread (not the mean) of every respawn-time random draw:
+   * initial-heading spread, speed jitter, chirality, lateral bias, and the
+   * hue/weight bucket draw's probability of landing nonzero. 1 = the
+   * original, un-scaled spreads; 0 = every new particle spawns identical;
+   * >1 exaggerates the texture. This is the spec's "jitter amount"
+   * (Flow_Experiment_Spec.md, "Control panel").
+   */
+  jitterAmount: number;
+  /**
+   * Radius (device px) of the small random offset applied around a
+   * source's resolved position at spawn, so particles from one source
+   * don't all trace the exact same line — see respawn()'s own comment.
+   * This is the closest surviving equivalent of the spec's "source
+   * outflow radius": the spec's small-radius outflow *mechanism* was
+   * superseded by 2f's whole-domain divergent field (see
+   * `Flow experiment fan-out.txt`'s 2f docs and field.ts's `pathWeight`,
+   * which is the surviving "source outflow strength" knob) — this radius
+   * is the one remaining literal "radius near a source" parameter.
+   */
+  spawnJitterRadius: number;
+}
+
+export const DEFAULT_PARTICLE_STYLE: ParticleStyle = { jitterAmount: 1, spawnJitterRadius: 4 };
+
+/**
+ * Draw a hue/weight jitter bucket (-1, 0, or 1) with `jitterAmount` scaling
+ * the probability of landing nonzero. At j=1: P(nonzero) = 2/3, split
+ * evenly between -1 and +1 — algebraically identical to the original
+ * `Math.floor(Math.random() * 3) - 1` (P(0)=1/3, P(-1)=P(1)=1/3 each), so
+ * the default distribution is unchanged. j=0 always lands 0 (no texture);
+ * j>=1.5 saturates at "always nonzero", still an even -1/+1 split.
+ */
+function jitteredBucket(jitterAmount: number): number {
+  const pNonzero = Math.min(1, (2 / 3) * jitterAmount);
+  if (Math.random() >= pNonzero) return 0;
+  return Math.random() < 0.5 ? -1 : 1;
+}
+
 // Heading-ease rate, expressed at a 60fps baseline and converted to a
 // dt-aware blend fraction in step() — see the step2 plan feedback: the
 // step 1 fixed 0.25-per-frame ease was implicitly tuned to 60fps and any
@@ -270,6 +319,15 @@ export interface ParticleSystemOptions {
    * itself accumulating unbounded history.
    */
   onDeath?: (index: number, cause: DeathCause, ageAtDeath: number) => void;
+  /**
+   * Initial `style` (step 4's jitter-amount/spawn-radius knobs). Threaded
+   * through the constructor — rather than left at `DEFAULT_PARTICLE_STYLE`
+   * and mutated after the fact — so a particle-count change (which
+   * rebuilds the whole `ParticleSystem`, see main.ts's `setParticleCount`)
+   * doesn't silently reset the panel's jitter/spawn-radius sliders back to
+   * default.
+   */
+  style?: ParticleStyle;
 }
 
 /**
@@ -346,6 +404,9 @@ export class ParticleSystem {
   /** 2g's occupancy grid — dynamic simulation state, rebuilt whenever the world (and so the mask's dimensions) changes. */
   densityField: DensityField;
 
+  /** Step 4: live respawn-time style knobs — see `ParticleStyle`'s own docs. */
+  style: ParticleStyle;
+
   private cumulativeRates: number[] = [];
   private totalRate = 0;
 
@@ -378,6 +439,7 @@ export class ParticleSystem {
     this.hueBucket = new Int8Array(count);
     this.weightBucket = new Int8Array(count);
     this.densityField = buildDensityField(world.mask);
+    this.style = this.options.style ?? { ...DEFAULT_PARTICLE_STYLE };
 
     this.buildRateTable();
     for (let i = 0; i < count; i++) {
@@ -406,6 +468,17 @@ export class ParticleSystem {
       this.cumulativeRates.push(sum);
     }
     this.totalRate = sum;
+  }
+
+  /**
+   * Step 4: call after mutating a `Source.rate` in place (the per-source
+   * emission sliders do this directly against `sources.ts`'s `SOURCES`
+   * array — `world.sources[i].source` is the same object, not a copy) so
+   * the next spawn picks it up. Cheap (O(sources), i.e. 7) — no world or
+   * particle-pool rebuild needed, unlike a particle-count change.
+   */
+  refreshRates() {
+    this.buildRateTable();
   }
 
   private pickSourceIndex(): number {
@@ -442,8 +515,11 @@ export class ParticleSystem {
     const srcIdx = this.pickSourceIndex();
     const resolved = this.world.sources[srcIdx];
     // Small radius jitter so particles from one source don't all trace
-    // the exact same line — source outflow proper is step 3.
-    const jitterR = 4 * Math.sqrt(Math.random());
+    // the exact same line — source outflow proper is step 3. Radius is
+    // step 4's `style.spawnJitterRadius` (the spec's "source outflow
+    // radius" — see ParticleStyle's own docs for why this, and not a
+    // separate small-radius field term, is what survived to be that knob).
+    const jitterR = this.style.spawnJitterRadius * Math.sqrt(Math.random());
     const jitterA = Math.random() * Math.PI * 2;
     let sx = resolved.position[0] + Math.cos(jitterA) * jitterR;
     let sy = resolved.position[1] + Math.sin(jitterA) * jitterR;
@@ -465,14 +541,18 @@ export class ParticleSystem {
     this.y[i] = sy;
     this.px[i] = sx;
     this.py[i] = sy;
+    // Step 4: scales every spread below (not the mean of any of them) —
+    // see ParticleStyle.jitterAmount's own docs. 1 reproduces the original
+    // unscaled expressions exactly.
+    const j = this.style.jitterAmount;
     // Initial heading: mostly southward with a little spread.
-    const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.8; // canvas: +y is south
+    const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.8 * j; // canvas: +y is south
     this.hx[i] = Math.cos(angle);
     this.hy[i] = Math.sin(angle);
     this.age[i] = 0;
     const { min, extra } = this.ageBudgetRange();
     this.maxAge[i] = min + Math.random() * extra;
-    this.speed[i] = 90 * (0.8 + Math.random() * 0.4);
+    this.speed[i] = 90 * (1 + (Math.random() - 0.5) * 0.4 * j);
     this.sourceIndex[i] = srcIdx;
     this.strikes[i] = 0;
     this.stallTime[i] = 0;
@@ -481,11 +561,11 @@ export class ParticleSystem {
     this.checkpointAge[i] = 0;
     this.trappedFailStreak[i] = 0;
     this.overDensityTime[i] = 0;
-    this.chirality[i] = (Math.random() - 0.5) * CHIRALITY_MAGNITUDE;
-    this.lateralBias[i] = (Math.random() - 0.5) * LATERAL_BIAS_MAGNITUDE;
-    this.noisePhase[i] = Math.random() * 1000; // decorrelates the fine noise octave's time axis
-    this.hueBucket[i] = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-    this.weightBucket[i] = Math.floor(Math.random() * 3) - 1;
+    this.chirality[i] = (Math.random() - 0.5) * CHIRALITY_MAGNITUDE * j;
+    this.lateralBias[i] = (Math.random() - 0.5) * LATERAL_BIAS_MAGNITUDE * j;
+    this.noisePhase[i] = Math.random() * 1000; // decorrelates the fine noise octave's time axis — a phase, not a spread, so unscaled by j
+    this.hueBucket[i] = jitteredBucket(j);
+    this.weightBucket[i] = jitteredBucket(j);
   }
 
   step(dt: number, fieldParams: FieldParams = DEFAULT_FIELD_PARAMS) {
@@ -694,7 +774,7 @@ export class ParticleSystem {
    * `renderBuckets` is reused frame to frame (lengths reset, not the
    * arrays reallocated) so this stays allocation-free like `step()`.
    */
-  render(ctx: CanvasRenderingContext2D, palette: Palette) {
+  render(ctx: CanvasRenderingContext2D, palette: Palette, strokeWeightMultiplier = 1) {
     const numSources = this.world.sources.length;
     const numBuckets = numSources * 9; // 3 hueBuckets x 3 weightBuckets, offset -1..1 each
     if (this.renderBuckets.length !== numBuckets) {
@@ -718,7 +798,11 @@ export class ParticleSystem {
       const weightBucket = (b % 3) - 1;
       const channel = this.world.sources[sourceIdx]?.source.palette;
       ctx.strokeStyle = resolveStrokeColor(palette, channel, hueBucket);
-      ctx.lineWidth = resolveStrokeWidth(palette, weightBucket);
+      // Step 4's stroke-weight slider: a multiplier on top of the
+      // palette's own tuned base width, not a replacement for it — so the
+      // per-particle weightBucket texture (and the dark/light palettes'
+      // different base widths) survive under any multiplier value.
+      ctx.lineWidth = resolveStrokeWidth(palette, weightBucket) * strokeWeightMultiplier;
       ctx.beginPath();
       for (const i of indices) {
         // A particle that just respawned this frame has px/py reset equal
